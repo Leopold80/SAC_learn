@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+
+outputs/
+runs/
+training_logs/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.venv/
+venv/
+*.egg-info/
+
+.DS_Store

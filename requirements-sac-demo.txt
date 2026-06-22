@@ -1,0 +1,9 @@
+stable-baselines3==2.7.0
+gymnasium[box2d]>=0.29.1,<1.3.0
+tensorboard
+setuptools<81
+pygame
+imageio
+swig
+tqdm
+rich
