@@ -1,0 +1,32 @@
+# Short functional test. This checks plumbing only, not research performance.
+
+variants:
+  - ltc_residual
+  - ltc_residual_action
+
+timesteps: 2000
+eval_episodes: 2
+eval_freq: 1000
+seed: 42
+frame_stack: 4
+
+device: auto
+allow_cpu: true
+
+output_dir: outputs/lunarlander_smoke
+tensorboard_log: runs/lunarlander_smoke
+run_tag: null
+
+ltc:
+  liquid_hidden_dim: 128
+  features_dim: 256
+  raw_features_dim: 128
+  fusion_hidden_dim: 256
+  dt: 1.0
+  tau_min: 0.1
+  ode_unfolds: 4
+  reversal_init_scale: 1.0
+
+action_history:
+  raw_obs_dim: 8
+  action_dim: 2

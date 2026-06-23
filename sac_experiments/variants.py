@@ -7,17 +7,25 @@ from typing import Any, Literal
 from sac_experiments.ltc_features import (
     CircuitLTCTemporalFeaturesExtractor,
     LTCTemporalFeaturesExtractor,
+    ResidualCircuitLTCFeaturesExtractor,
 )
 
 
-Variant = Literal["stacked_mlp", "stacked_ltc_simple", "stacked_ltc_circuit"]
+Variant = Literal["mlp", "ltc", "ltc_residual", "ltc_residual_action", "ltc_simple"]
 DEFAULT_VARIANTS: tuple[Variant, ...] = (
-    "stacked_mlp",
-    "stacked_ltc_simple",
-    "stacked_ltc_circuit",
+    "mlp",
+    "ltc",
+    "ltc_residual",
+    "ltc_residual_action",
 )
-ALL_VARIANTS: tuple[Variant, ...] = DEFAULT_VARIANTS
-LEGACY_VARIANT_ALIASES = {"stacked_ltc": "stacked_ltc_simple"}
+LEGACY_VARIANTS: tuple[Variant, ...] = ("ltc_simple",)
+ALL_VARIANTS: tuple[Variant, ...] = DEFAULT_VARIANTS + LEGACY_VARIANTS
+LEGACY_VARIANT_ALIASES = {
+    "stacked_mlp": "mlp",
+    "stacked_ltc_circuit": "ltc",
+    "stacked_ltc": "ltc_simple",
+    "stacked_ltc_simple": "ltc_simple",
+}
 
 
 def canonical_variant(variant: str) -> Variant:
@@ -31,40 +39,74 @@ def base_policy_kwargs() -> dict[str, Any]:
     return {"net_arch": [400, 300]}
 
 
+def uses_action_history(variant: Variant) -> bool:
+    return variant == "ltc_residual_action"
+
+
+def tensorboard_run_name(variant: Variant) -> str:
+    if variant == "ltc_residual":
+        return "ltc_res"
+    if variant == "ltc_residual_action":
+        return "ltc_act"
+    return variant
+
+
+def circuit_ltc_kwargs(args) -> dict[str, Any]:
+    ltc = args.ltc
+    return {
+        "liquid_hidden_dim": ltc["liquid_hidden_dim"],
+        "features_dim": ltc["features_dim"],
+        "dt": ltc["dt"],
+        "tau_min": ltc["tau_min"],
+        "ode_unfolds": ltc["ode_unfolds"],
+        "reversal_init_scale": ltc["reversal_init_scale"],
+    }
+
+
 def variant_policy_kwargs(args, variant: Variant) -> dict[str, Any]:
-    if variant == "stacked_mlp":
+    if variant == "mlp":
         return base_policy_kwargs()
-    if variant == "stacked_ltc_simple":
+    if variant == "ltc_simple":
+        ltc = args.ltc
         return {
             **base_policy_kwargs(),
             "features_extractor_class": LTCTemporalFeaturesExtractor,
             "features_extractor_kwargs": {
-                "liquid_hidden_dim": args.liquid_hidden_dim,
-                "features_dim": args.features_dim,
-                "dt": args.ltc_dt,
+                "liquid_hidden_dim": ltc["liquid_hidden_dim"],
+                "features_dim": ltc["features_dim"],
+                "dt": ltc["dt"],
             },
         }
-    if variant == "stacked_ltc_circuit":
+    if variant == "ltc":
         return {
             **base_policy_kwargs(),
             "features_extractor_class": CircuitLTCTemporalFeaturesExtractor,
-            "features_extractor_kwargs": {
-                "liquid_hidden_dim": args.liquid_hidden_dim,
-                "features_dim": args.features_dim,
-                "dt": args.ltc_dt,
-                "tau_min": args.ltc_tau_min,
-                "ode_unfolds": args.ltc_ode_unfolds,
-                "reversal_init_scale": args.ltc_reversal_init_scale,
-            },
+            "features_extractor_kwargs": circuit_ltc_kwargs(args),
+        }
+    if variant in {"ltc_residual", "ltc_residual_action"}:
+        ltc = args.ltc
+        extractor_kwargs = {
+            **circuit_ltc_kwargs(args),
+            "raw_features_dim": ltc["raw_features_dim"],
+            "fusion_hidden_dim": ltc["fusion_hidden_dim"],
+        }
+        if uses_action_history(variant):
+            extractor_kwargs["raw_obs_dim"] = args.action_history["raw_obs_dim"]
+        return {
+            **base_policy_kwargs(),
+            "features_extractor_class": ResidualCircuitLTCFeaturesExtractor,
+            "features_extractor_kwargs": extractor_kwargs,
         }
     raise ValueError(f"Unknown variant: {variant}")
 
 
 def feature_extractor_name(variant: Variant) -> str:
-    if variant == "stacked_mlp":
+    if variant == "mlp":
         return "FlattenExtractor"
-    if variant == "stacked_ltc_simple":
+    if variant == "ltc_simple":
         return "LTCTemporalFeaturesExtractor"
-    if variant == "stacked_ltc_circuit":
+    if variant == "ltc":
         return "CircuitLTCTemporalFeaturesExtractor"
+    if variant in {"ltc_residual", "ltc_residual_action"}:
+        return "ResidualCircuitLTCFeaturesExtractor"
     raise ValueError(f"Unknown variant: {variant}")

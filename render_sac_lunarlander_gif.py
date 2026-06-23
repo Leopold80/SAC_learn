@@ -14,6 +14,7 @@ from stable_baselines3 import SAC
 from sac_experiments.ltc_features import (
     CircuitLTCTemporalFeaturesExtractor,
     LTCTemporalFeaturesExtractor,
+    ResidualCircuitLTCFeaturesExtractor,
 )
 from sac_experiments.lunarlander_common import DEFAULT_FRAME_STACK, ENV_ID, make_lunarlander_env
 
@@ -35,6 +36,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--fps", type=int, default=DEFAULT_FPS)
     parser.add_argument("--frame-stack", type=int, default=DEFAULT_FRAME_STACK)
+    parser.add_argument(
+        "--action-history",
+        action="store_true",
+        help="Use previous-action observations for ltc_residual_action models.",
+    )
     parser.add_argument("--device", default="auto")
     parser.add_argument("--summary-path", type=Path, default=None)
     return parser.parse_args()
@@ -50,6 +56,7 @@ def render_policy(args: argparse.Namespace) -> dict[str, Any]:
         seed=args.seed,
         frame_stack=args.frame_stack,
         render_mode="rgb_array",
+        use_action_history=args.action_history,
     )
     model = SAC.load(args.model_path, device=args.device)
 
@@ -74,6 +81,7 @@ def render_policy(args: argparse.Namespace) -> dict[str, Any]:
         "model_path": str(args.model_path),
         "output_path": str(args.output_path),
         "frame_stack": args.frame_stack,
+        "uses_action_history": args.action_history,
         "seed": args.seed,
         "fps": args.fps,
         "frames": len(frames),

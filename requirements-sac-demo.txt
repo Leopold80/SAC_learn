@@ -4,6 +4,7 @@ tensorboard
 setuptools<81
 pygame
 imageio
+PyYAML
 swig
 tqdm
 rich

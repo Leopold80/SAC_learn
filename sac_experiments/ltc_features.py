@@ -134,3 +134,64 @@ class CircuitLTCTemporalFeaturesExtractor(BaseFeaturesExtractor):
             return observations
         raise ValueError(f"Expected observations with 2 or 3 dims, got {observations.shape}.")
 
+
+class ResidualCircuitLTCFeaturesExtractor(BaseFeaturesExtractor):
+    """Circuit LTC encoder fused with a raw stacked-observation residual branch."""
+
+    def __init__(
+        self,
+        observation_space: spaces.Box,
+        liquid_hidden_dim: int = 128,
+        features_dim: int = 256,
+        raw_features_dim: int = 128,
+        fusion_hidden_dim: int = 256,
+        dt: float = 1.0,
+        tau_min: float = 0.1,
+        ode_unfolds: int = 4,
+        reversal_init_scale: float = 1.0,
+        raw_obs_dim: int | None = None,
+    ) -> None:
+        if len(observation_space.shape) != 2:
+            raise ValueError(f"Expected stacked observation shape (time, obs_dim), got {observation_space.shape}.")
+
+        super().__init__(observation_space, features_dim)
+        self.frame_stack = int(observation_space.shape[0])
+        self.obs_dim = int(observation_space.shape[1])
+        self.raw_obs_dim = raw_obs_dim if raw_obs_dim is not None else self.obs_dim
+        if not 1 <= self.raw_obs_dim <= self.obs_dim:
+            raise ValueError(f"raw_obs_dim must be in [1, {self.obs_dim}], got {self.raw_obs_dim}.")
+
+        self.ltc_encoder = CircuitLTCTemporalFeaturesExtractor(
+            observation_space=observation_space,
+            liquid_hidden_dim=liquid_hidden_dim,
+            features_dim=features_dim,
+            dt=dt,
+            tau_min=tau_min,
+            ode_unfolds=ode_unfolds,
+            reversal_init_scale=reversal_init_scale,
+        )
+        self.raw_projection = nn.Sequential(
+            nn.Linear(self.frame_stack * self.raw_obs_dim, raw_features_dim),
+            nn.ReLU(),
+        )
+        self.fusion = nn.Sequential(
+            nn.LayerNorm(features_dim + raw_features_dim),
+            nn.Linear(features_dim + raw_features_dim, fusion_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(fusion_hidden_dim, features_dim),
+            nn.ReLU(),
+        )
+
+    def forward(self, observations: torch.Tensor) -> torch.Tensor:
+        observations = self._reshape_observations(observations)
+        raw_observations = observations[:, :, : self.raw_obs_dim].reshape(observations.shape[0], -1)
+        raw_features = self.raw_projection(raw_observations)
+        ltc_features = self.ltc_encoder(observations)
+        return self.fusion(torch.cat([raw_features, ltc_features], dim=-1))
+
+    def _reshape_observations(self, observations: torch.Tensor) -> torch.Tensor:
+        if observations.ndim == 2:
+            return observations.reshape(-1, self.frame_stack, self.obs_dim)
+        if observations.ndim == 3:
+            return observations
+        raise ValueError(f"Expected observations with 2 or 3 dims, got {observations.shape}.")

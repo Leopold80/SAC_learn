@@ -1,0 +1,36 @@
+# Full LunarLanderContinuous-v3 SAC comparison.
+# Edit this file instead of passing many command-line flags.
+
+variants:
+  - mlp
+  - ltc
+  - ltc_residual
+  - ltc_residual_action
+
+timesteps: 500000
+eval_episodes: 10
+eval_freq: 10000
+seed: 42
+frame_stack: 4
+
+# Formal runs should use CUDA. Use configs/smoke.yaml for CPU debugging.
+device: cuda
+allow_cpu: false
+
+output_dir: outputs/lunarlander
+tensorboard_log: runs/lunarlander
+run_tag: null
+
+ltc:
+  liquid_hidden_dim: 128
+  features_dim: 256
+  raw_features_dim: 128
+  fusion_hidden_dim: 256
+  dt: 1.0
+  tau_min: 0.1
+  ode_unfolds: 4
+  reversal_init_scale: 1.0
+
+action_history:
+  raw_obs_dim: 8
+  action_dim: 2
