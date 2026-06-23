@@ -3,14 +3,21 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
+from typing import Any
 
-import gymnasium as gym
 import imageio.v2 as imageio
 from stable_baselines3 import SAC
 
+# Import custom feature extractors so SB3 can deserialize LTC models.
+from sac_experiments.ltc_features import (
+    CircuitLTCTemporalFeaturesExtractor,
+    LTCTemporalFeaturesExtractor,
+)
+from sac_experiments.lunarlander_common import DEFAULT_FRAME_STACK, ENV_ID, make_lunarlander_env
 
-ENV_ID = "LunarLanderContinuous-v3"
+
 DEFAULT_MODEL_PATH = Path("outputs/sac_lunarlander/best_model/best_model.zip")
 DEFAULT_OUTPUT_PATH = Path("outputs/sac_lunarlander/lunarlander_best.gif")
 DEFAULT_STEPS = 1_000
@@ -27,20 +34,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=DEFAULT_STEPS)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--fps", type=int, default=DEFAULT_FPS)
+    parser.add_argument("--frame-stack", type=int, default=DEFAULT_FRAME_STACK)
     parser.add_argument("--device", default="auto")
+    parser.add_argument("--summary-path", type=Path, default=None)
     return parser.parse_args()
 
 
-def main() -> None:
-    args = parse_args()
+def render_policy(args: argparse.Namespace) -> dict[str, Any]:
     if not args.model_path.exists():
-        raise FileNotFoundError(
-            f"Model not found: {args.model_path}. Run sac_sb3_lunarlander_demo.py first."
-        )
+        raise FileNotFoundError(f"Model not found: {args.model_path}")
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    env = gym.make(ENV_ID, render_mode="rgb_array")
+    env = make_lunarlander_env(
+        seed=args.seed,
+        frame_stack=args.frame_stack,
+        render_mode="rgb_array",
+    )
     model = SAC.load(args.model_path, device=args.device)
 
     obs, _info = env.reset(seed=args.seed)
@@ -59,9 +69,30 @@ def main() -> None:
     env.close()
 
     imageio.mimsave(args.output_path, frames, fps=args.fps)
-    print(f"Saved GIF to {args.output_path}")
-    print(f"Frames: {len(frames)}")
-    print(f"Episode reward: {total_reward:.2f}")
+    result = {
+        "env_id": ENV_ID,
+        "model_path": str(args.model_path),
+        "output_path": str(args.output_path),
+        "frame_stack": args.frame_stack,
+        "seed": args.seed,
+        "fps": args.fps,
+        "frames": len(frames),
+        "episode_reward": total_reward,
+    }
+
+    if args.summary_path is not None:
+        args.summary_path.parent.mkdir(parents=True, exist_ok=True)
+        args.summary_path.write_text(json.dumps(result, indent=2), encoding="utf-8")
+
+    return result
+
+
+def main() -> None:
+    args = parse_args()
+    result = render_policy(args)
+    print(f"Saved GIF to {result['output_path']}")
+    print(f"Frames: {result['frames']}")
+    print(f"Episode reward: {result['episode_reward']:.2f}")
 
 
 if __name__ == "__main__":
