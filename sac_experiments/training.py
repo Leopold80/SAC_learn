@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from time import perf_counter
 from collections.abc import Sequence
 from contextlib import ExitStack, closing
 from pathlib import Path
@@ -22,6 +23,7 @@ from sac_experiments.lunarlander_common import (
     linear_schedule,
     lunarlander_dimensions,
     make_lunarlander_env,
+    make_lunarlander_vec_env,
 )
 from sac_experiments.variants import (
     Variant,
@@ -92,6 +94,8 @@ def build_variant_summary(
     tensorboard_log: Path,
     raw_obs_dim: int,
     action_dim: int,
+    training_wall_time_seconds: float,
+    sampled_transitions: int,
 ) -> dict[str, Any]:
     learning_rate = {
         "initial": config.learning_rate,
@@ -107,6 +111,10 @@ def build_variant_summary(
         "seed": config.seed,
         "timesteps": config.timesteps,
         "frame_stack": config.frame_stack,
+        "n_envs": config.n_envs,
+        "vec_env": "SubprocVecEnv" if config.n_envs > 1 else "DummyVecEnv",
+        "worker_seeds": [config.seed + index for index in range(config.n_envs)],
+        "eval_seed": config.seed + config.n_envs,
         "uses_action_history": uses_action_history(variant),
         "raw_obs_dim": raw_obs_dim,
         "action_dim": action_dim,
@@ -119,6 +127,16 @@ def build_variant_summary(
         "ltc": ltc_config_for_summary(config, variant),
         "eval_episodes": config.eval_episodes,
         "eval_freq": config.eval_freq,
+        "callback_freq_vec_steps": config.eval_freq // config.n_envs,
+        "training_wall_time_seconds": training_wall_time_seconds,
+        "sampled_transitions": sampled_transitions,
+        "sample_throughput_transitions_per_second": (
+            sampled_transitions / training_wall_time_seconds
+        ),
+        "gradient_updates_per_transition": (
+            config.sac["gradient_steps"]
+            / (config.sac["train_freq"] * config.n_envs)
+        ),
         "before_training": {
             "mean_reward": before_eval[0],
             "std_reward": before_eval[1],
@@ -163,10 +181,11 @@ def train_variant(
     with ExitStack() as env_stack:
         train_env = env_stack.enter_context(
             closing(
-                make_lunarlander_env(
-                    config.seed,
-                    config.frame_stack,
-                    monitor_dir / "train",
+                make_lunarlander_vec_env(
+                    n_envs=config.n_envs,
+                    seed=config.seed,
+                    frame_stack=config.frame_stack,
+                    monitor_dir=monitor_dir / "train",
                     use_action_history=use_action_history,
                 )
             )
@@ -174,14 +193,14 @@ def train_variant(
         eval_env = env_stack.enter_context(
             closing(
                 make_lunarlander_env(
-                    config.seed + 1,
+                    config.seed + config.n_envs,
                     config.frame_stack,
                     monitor_dir / "eval",
                     use_action_history=use_action_history,
                 )
             )
         )
-        raw_obs_dim, action_dim = lunarlander_dimensions(train_env)
+        raw_obs_dim, action_dim = lunarlander_dimensions(eval_env)
         learning_rate = (
             linear_schedule(config.learning_rate)
             if config.learning_rate_schedule == "linear"
@@ -205,19 +224,20 @@ def train_variant(
             config.eval_episodes,
             f"{variant} before training",
         )
+        callback_freq = config.eval_freq // config.n_envs
         callbacks = CallbackList(
             [
                 EvalCallback(
                     eval_env,
                     best_model_save_path=str(best_model_dir),
                     log_path=str(variant_output_dir / "eval_logs"),
-                    eval_freq=config.eval_freq,
+                    eval_freq=callback_freq,
                     n_eval_episodes=config.eval_episodes,
                     deterministic=True,
                     render=False,
                 ),
                 CheckpointCallback(
-                    save_freq=config.eval_freq,
+                    save_freq=callback_freq,
                     save_path=str(checkpoint_dir),
                     name_prefix=f"sac_lunarlander_{variant}",
                     save_replay_buffer=False,
@@ -226,6 +246,7 @@ def train_variant(
             ]
         )
 
+        training_started_at = perf_counter()
         model.learn(
             total_timesteps=config.timesteps,
             callback=callbacks,
@@ -233,6 +254,7 @@ def train_variant(
             tb_log_name=tb_run_name,
             progress_bar=config.progress_bar,
         )
+        training_wall_time_seconds = perf_counter() - training_started_at
         tensorboard_run_dir = (
             Path(model.logger.dir) if model.logger.dir else config.tensorboard_log
         )
@@ -256,6 +278,8 @@ def train_variant(
             tensorboard_log=tensorboard_run_dir,
             raw_obs_dim=raw_obs_dim,
             action_dim=action_dim,
+            training_wall_time_seconds=training_wall_time_seconds,
+            sampled_transitions=model.num_timesteps,
         )
         summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
         return summary
@@ -288,6 +312,7 @@ def run_experiment(config: ExperimentConfig) -> Path:
         "seed": config.seed,
         "timesteps": config.timesteps,
         "frame_stack": config.frame_stack,
+        "n_envs": config.n_envs,
         "variants": summaries,
     }
     if len(config.variants) == 1:

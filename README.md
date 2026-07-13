@@ -8,7 +8,7 @@
 |---|---|
 | `main.py` | 唯一训练入口；读取 YAML 后调用统一训练流程。 |
 | `render_sac_lunarlander_gif.py` | 根据保存模型的 observation space 自动匹配环境并输出 GIF。 |
-| `configs/` | 正式、单帧 baseline 与 smoke YAML 配置。 |
+| `configs/` | 正式、单帧 baseline、并行采样与 smoke YAML 配置。 |
 | `docs/architecture.md` | 模块职责与推荐阅读路径。 |
 | `docs/research_roadmap.md` | LTC 设计说明与研究路线。 |
 | `docs/windows_migration.md` | Windows 复现实验说明。 |
@@ -111,6 +111,16 @@ conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 ```bash
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 ```
+
+四进程并行采样 baseline：
+
+```bash
+conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
+```
+
+并行配置使用 `SubprocVecEnv`，每个 worker 使用不同 seed；评估仍是独立单环境。
+`evaluation.frequency` 继续表示总 transition 数。四环境配置同步把
+`gradient_steps` 设为 4，以维持单环境 baseline 约 1:1 的更新/样本比例。
 
 `main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac` 和 `ltc` 分组。未知字段会直接报错，避免拼写错误被静默忽略。
 
@@ -262,7 +272,7 @@ conda run -n sac_sb3_demo python render_sac_lunarlander_gif.py \
 
 ### 新增实验基础设施 TODO
 
-- [ ] 加入并验证并行环境采样 / 训练：先建立与单环境完全等价的 `VecEnv` 基线，再比较不同环境数下的 sample throughput、wall-clock、显存和最终 eval；明确随机种子、callback 频率和 checkpoint 语义。
+- [ ] 完成并行环境对比实验：可复现 `VecEnv`、随机种子、callback / checkpoint 频率和 summary 口径已经实现；下一步比较 `n_envs=1/2/4` 的 sample throughput、wall-clock、显存和最终 eval。
 - [ ] 加入贝叶斯超参数搜索：以独立 `run_tag`、固定搜索预算和多 seed 复验为前提，搜索 learning rate、batch size、`tau`、network / LTC 容量等；目标函数以中后期 deterministic eval 与训练成本共同定义，不能只选单次 best reward。
 
 ### P0: 先把当前 fixed-window 对照实验做扎实

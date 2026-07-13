@@ -10,6 +10,7 @@ experiment:
 
 environment:
   frame_stack: 4
+  n_envs: 1
 
 training:
   timesteps: 2000

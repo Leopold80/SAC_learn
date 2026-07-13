@@ -162,10 +162,10 @@ a_t = π(h_t)
 
 ### 并行环境采样 / 训练
 
-- [ ] 先为当前单环境 SAC 基线建立可复现的 `VecEnv` 版本（例如 `SubprocVecEnv`），保持算法、评估环境和保存口径不变。
+- [x] 先为当前单环境 SAC 基线建立可复现的 `VecEnv` 版本（`n_envs=1` 使用 `DummyVecEnv`，多环境使用 `SubprocVecEnv`），保持算法、评估环境和保存口径不变。
 - [ ] 比较 `n_envs = 1, 2, 4, ...` 的 sample throughput、wall-clock、GPU 利用率、显存、final / best eval 和学习稳定性；不能只看 FPS。
-- [ ] 明确 vectorized callback 的 `eval_freq` 与 checkpoint 频率按环境步数还是总 transition 计，并在 summary 中记录 `n_envs`。
-- [ ] 为每个并行 worker 设计可追溯但不同的随机种子，并验证 train / eval 环境仍然严格分离。
+- [x] `eval_freq` 与 checkpoint 频率统一按总 transition 计，并在 summary 中记录 `n_envs`、VecEnv 类型、内部 callback 频率、wall-clock 和吞吐率。
+- [x] 每个并行 worker 使用 `seed + worker_index`，summary 记录全部 worker seed；评估使用不与 worker 重合的 `seed + n_envs` 单环境。
 
 ### 贝叶斯超参数搜索
 

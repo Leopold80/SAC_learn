@@ -1,4 +1,4 @@
-# Full LunarLanderContinuous-v3 SAC + LTC comparison.
+# Four-process sampling experiment for the single-frame MLP baseline.
 
 experiment:
   environment: LunarLanderContinuous-v3
@@ -6,13 +6,10 @@ experiment:
   policy: MlpPolicy
   variants:
     - mlp
-    - ltc
-    - ltc_residual
-    - ltc_residual_action
 
 environment:
-  frame_stack: 4
-  n_envs: 1
+  frame_stack: 1
+  n_envs: 4
 
 training:
   timesteps: 500000
@@ -26,8 +23,8 @@ evaluation:
   frequency: 10000
 
 output:
-  directory: outputs/lunarlander
-  tensorboard_log: runs/lunarlander
+  directory: outputs/lunarlander_parallel_baseline
+  tensorboard_log: runs/lunarlander_parallel_baseline
   run_tag: null
 
 sac:
@@ -40,7 +37,9 @@ sac:
   gamma: 0.99
   tau: 0.01
   train_freq: 1
-  gradient_steps: 1
+  # One VecEnv step collects four transitions. Four updates preserve the
+  # baseline's approximate 1:1 gradient-update/transition ratio.
+  gradient_steps: 4
   learning_starts: 10000
 
 ltc:

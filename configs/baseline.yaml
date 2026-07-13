@@ -9,6 +9,7 @@ experiment:
 
 environment:
   frame_stack: 1
+  n_envs: 1
 
 training:
   timesteps: 500000

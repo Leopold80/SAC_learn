@@ -15,6 +15,7 @@ Choose another experiment only by changing the config path:
 
 ```bash
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
 conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 ```
 
@@ -37,7 +38,7 @@ evaluate, and save models and summaries.
 Each config uses the same sections:
 
 - `experiment`: environment, algorithm, policy, and variants.
-- `environment`: observation frame stacking.
+- `environment`: observation frame stacking and number of training environments.
 - `training`: timesteps, seed, device, CPU fallback, and progress display.
 - `evaluation`: deterministic evaluation episode count and frequency.
 - `output`: model directory, TensorBoard directory, and optional run tag.
@@ -56,6 +57,15 @@ single-segment `output.run_tag` for every additional run.
 `configs/baseline.yaml` selects only `mlp` and sets `frame_stack: 1`. It uses the
 same code as the stacked comparison, so there is no second baseline training
 loop to drift out of sync.
+
+`configs/parallel_baseline.yaml` uses four subprocess training environments.
+Worker seeds are `training.seed + worker_index`. Evaluation remains a separate
+single environment using `training.seed + n_envs`, and evaluation/checkpoint
+frequencies continue to mean total collected transitions rather than
+vector-environment calls. Because each
+four-environment step collects four transitions, this config also sets
+`gradient_steps: 4` to preserve the single-environment baseline's approximate
+gradient-update/transition ratio.
 
 ## Main Modules
 

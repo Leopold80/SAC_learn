@@ -39,7 +39,10 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "policy": SUPPORTED_POLICY,
         "variants": list(DEFAULT_VARIANTS),
     },
-    "environment": {"frame_stack": DEFAULT_FRAME_STACK},
+    "environment": {
+        "frame_stack": DEFAULT_FRAME_STACK,
+        "n_envs": 1,
+    },
     "training": {
         "timesteps": DEFAULT_TIMESTEPS,
         "seed": DEFAULT_SEED,
@@ -85,6 +88,7 @@ class ExperimentConfig:
     policy: str
     variants: tuple[Variant, ...]
     frame_stack: int
+    n_envs: int
     timesteps: int
     seed: int
     device: str
@@ -215,9 +219,17 @@ def load_config(path: Path) -> ExperimentConfig:
         raise ValueError(f"experiment.variants contains duplicates: {variants}")
 
     frame_stack = _positive_int(environment["frame_stack"], "environment.frame_stack")
+    n_envs = _positive_int(environment["n_envs"], "environment.n_envs")
     if frame_stack == 1 and any(variant != "mlp" for variant in variants):
         raise ValueError("LTC variants require environment.frame_stack to be at least 2.")
     timesteps = _positive_int(training["timesteps"], "training.timesteps")
+    if n_envs > timesteps:
+        raise ValueError("environment.n_envs must not exceed training.timesteps.")
+    if timesteps % n_envs != 0:
+        raise ValueError(
+            "training.timesteps must be divisible by environment.n_envs so the "
+            "requested total transition count is exact."
+        )
     seed = training["seed"]
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise ValueError(f"training.seed must be a non-negative integer, got {seed!r}.")
@@ -235,6 +247,11 @@ def load_config(path: Path) -> ExperimentConfig:
         raise ValueError(
             "evaluation.frequency must not exceed training.timesteps; otherwise no "
             "best-model evaluation would run."
+        )
+    if eval_freq % n_envs != 0:
+        raise ValueError(
+            "evaluation.frequency must be divisible by environment.n_envs because "
+            "vectorized callbacks run once per VecEnv step."
         )
 
     output_directory_value = output["directory"]
@@ -306,6 +323,7 @@ def load_config(path: Path) -> ExperimentConfig:
         policy=policy,
         variants=variants,
         frame_stack=frame_stack,
+        n_envs=n_envs,
         timesteps=timesteps,
         seed=seed,
         device=device,

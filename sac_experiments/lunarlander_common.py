@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from functools import partial
 from pathlib import Path
 from typing import Callable
 
@@ -12,6 +13,7 @@ from gymnasium import spaces
 from gymnasium.wrappers import FrameStackObservation
 from stable_baselines3.common.evaluation import evaluate_policy
 from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv, VecEnv
 
 
 ENV_ID = "LunarLanderContinuous-v3"
@@ -143,6 +145,39 @@ def make_lunarlander_env(
     if monitor_dir is not None:
         monitor_dir.mkdir(parents=True, exist_ok=True)
     return Monitor(env, filename=str(monitor_dir / "monitor.csv") if monitor_dir else None)
+
+
+def make_lunarlander_vec_env(
+    n_envs: int,
+    seed: int,
+    frame_stack: int = DEFAULT_FRAME_STACK,
+    monitor_dir: Path | None = None,
+    use_action_history: bool = False,
+) -> VecEnv:
+    """Create reproducibly seeded training environments.
+
+    One environment still uses SB3's vector interface so the single- and
+    multi-environment experiments follow the same code path. Multiple
+    environments run in separate processes.
+    """
+
+    env_fns = [
+        partial(
+            make_lunarlander_env,
+            seed=seed + worker_index,
+            frame_stack=frame_stack,
+            monitor_dir=(
+                monitor_dir / f"worker_{worker_index:03d}"
+                if monitor_dir is not None
+                else None
+            ),
+            use_action_history=use_action_history,
+        )
+        for worker_index in range(n_envs)
+    ]
+    if n_envs == 1:
+        return DummyVecEnv(env_fns)
+    return SubprocVecEnv(env_fns)
 
 
 def lunarlander_dimensions(env: gym.Env) -> tuple[int, int]:
