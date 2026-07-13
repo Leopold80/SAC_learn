@@ -1,2 +1,1 @@
-"""Shared helpers for SAC experiment scripts."""
-
+"""LunarLander SAC experiment workflows and shared helpers."""

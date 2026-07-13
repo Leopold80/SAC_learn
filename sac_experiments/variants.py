@@ -9,6 +9,7 @@ from sac_experiments.ltc_features import (
     LTCTemporalFeaturesExtractor,
     ResidualCircuitLTCFeaturesExtractor,
 )
+from sac_experiments.lunarlander_common import DEFAULT_POLICY_NET_ARCH
 
 
 Variant = Literal["mlp", "ltc", "ltc_residual", "ltc_residual_action", "ltc_simple"]
@@ -36,7 +37,7 @@ def canonical_variant(variant: str) -> Variant:
 
 
 def base_policy_kwargs() -> dict[str, Any]:
-    return {"net_arch": [400, 300]}
+    return {"net_arch": list(DEFAULT_POLICY_NET_ARCH)}
 
 
 def uses_action_history(variant: Variant) -> bool:
@@ -63,7 +64,11 @@ def circuit_ltc_kwargs(args) -> dict[str, Any]:
     }
 
 
-def variant_policy_kwargs(args, variant: Variant) -> dict[str, Any]:
+def variant_policy_kwargs(
+    args,
+    variant: Variant,
+    raw_obs_dim: int | None = None,
+) -> dict[str, Any]:
     if variant == "mlp":
         return base_policy_kwargs()
     if variant == "ltc_simple":
@@ -91,7 +96,9 @@ def variant_policy_kwargs(args, variant: Variant) -> dict[str, Any]:
             "fusion_hidden_dim": ltc["fusion_hidden_dim"],
         }
         if uses_action_history(variant):
-            extractor_kwargs["raw_obs_dim"] = args.action_history["raw_obs_dim"]
+            if raw_obs_dim is None:
+                raise ValueError("raw_obs_dim is required for the action-history variant.")
+            extractor_kwargs["raw_obs_dim"] = raw_obs_dim
         return {
             **base_policy_kwargs(),
             "features_extractor_class": ResidualCircuitLTCFeaturesExtractor,

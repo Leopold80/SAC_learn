@@ -7,7 +7,7 @@ the SAC + LTC LunarLander experiments from this repository.
 
 Reproduce the current Linux SAC experiment workflow on Windows:
 
-- Stable-Baselines3 SAC on `Pendulum-v1` and `LunarLanderContinuous-v3`
+- Stable-Baselines3 SAC on `LunarLanderContinuous-v3`
 - four LunarLander comparison variants: `mlp`, `ltc`, `ltc_residual`, `ltc_residual_action`
 - CUDA acceleration when an NVIDIA GPU is available
 - TensorBoard monitoring with clean run names
@@ -60,7 +60,9 @@ Run static checks:
 ```powershell
 python -m py_compile `
   sac_lunarlander_ltc_compare.py `
+  sac_sb3_lunarlander_demo.py `
   render_sac_lunarlander_gif.py `
+  sac_experiments/lunarlander_baseline.py `
   sac_experiments/lunarlander_compare.py `
   sac_experiments/lunarlander_common.py `
   sac_experiments/variants.py `
@@ -162,13 +164,12 @@ python render_sac_lunarlander_gif.py `
   --output-path outputs/lunarlander/<run_tag>/visualizations/mlp_best.gif
 ```
 
-Action-history models must use the same wrapper:
+Action-history models are inferred automatically from their saved observation space:
 
 ```powershell
 python render_sac_lunarlander_gif.py `
   --model-path outputs/lunarlander/<run_tag>/ltc_residual_action/best_model/best_model.zip `
-  --output-path outputs/lunarlander/<run_tag>/visualizations/ltc_act_best.gif `
-  --action-history
+  --output-path outputs/lunarlander/<run_tag>/visualizations/ltc_act_best.gif
 ```
 
 ## GPU Notes
@@ -203,7 +204,7 @@ Keep these experiment conventions unchanged:
 - **Box2D install failure**: install `swig` via conda-forge, then reinstall `gymnasium[box2d]`.
 - **No CUDA**: install CUDA PyTorch wheel first, then project dependencies.
 - **TensorBoard shows old runs**: point `--logdir` to one clean run tag.
-- **Action-history GIF crashes**: rerun render with `--action-history`.
+- **GIF observation-space mismatch**: do not override `--frame-stack` or `--action-history`; the renderer infers both from the saved model and reports incompatible manual overrides.
 - **PowerShell line breaks fail**: use backtick `` ` `` for multi-line commands, not `\`.
 
 ## When To Prefer WSL2

@@ -16,7 +16,11 @@ from sac_experiments.ltc_features import (
     LTCTemporalFeaturesExtractor,
     ResidualCircuitLTCFeaturesExtractor,
 )
-from sac_experiments.lunarlander_common import DEFAULT_FRAME_STACK, ENV_ID, make_lunarlander_env
+from sac_experiments.lunarlander_common import (
+    ENV_ID,
+    infer_lunarlander_observation_setup,
+    make_lunarlander_env,
+)
 
 
 DEFAULT_MODEL_PATH = Path("outputs/sac_lunarlander/best_model/best_model.zip")
@@ -35,11 +39,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--steps", type=int, default=DEFAULT_STEPS)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
     parser.add_argument("--fps", type=int, default=DEFAULT_FPS)
-    parser.add_argument("--frame-stack", type=int, default=DEFAULT_FRAME_STACK)
+    parser.add_argument(
+        "--frame-stack",
+        type=int,
+        default=None,
+        help="Override the frame stack inferred from the saved model.",
+    )
     parser.add_argument(
         "--action-history",
-        action="store_true",
-        help="Use previous-action observations for ltc_residual_action models.",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Override whether previous actions are appended; inferred by default.",
     )
     parser.add_argument("--device", default="auto")
     parser.add_argument("--summary-path", type=Path, default=None)
@@ -51,37 +61,61 @@ def render_policy(args: argparse.Namespace) -> dict[str, Any]:
         raise FileNotFoundError(f"Model not found: {args.model_path}")
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
+    model = SAC.load(args.model_path, device=args.device)
+    inferred_frame_stack, inferred_action_history = infer_lunarlander_observation_setup(
+        model.observation_space
+    )
+    frame_stack = inferred_frame_stack if args.frame_stack is None else args.frame_stack
+    use_action_history = (
+        inferred_action_history if args.action_history is None else args.action_history
+    )
+    if (frame_stack, use_action_history) != (inferred_frame_stack, inferred_action_history):
+        raise ValueError(
+            "Renderer options do not match the saved model's observation space "
+            f"{model.observation_space.shape}. The model requires frame_stack="
+            f"{inferred_frame_stack} and action_history={inferred_action_history}."
+        )
 
     env = make_lunarlander_env(
         seed=args.seed,
-        frame_stack=args.frame_stack,
+        frame_stack=frame_stack,
         render_mode="rgb_array",
-        use_action_history=args.action_history,
+        use_action_history=use_action_history,
     )
-    model = SAC.load(args.model_path, device=args.device)
+    try:
+        if env.observation_space != model.observation_space:
+            raise ValueError(
+                "The constructed environment does not match the saved model observation "
+                f"space: expected {model.observation_space}, got {env.observation_space}."
+            )
+        if env.action_space != model.action_space:
+            raise ValueError(
+                "The constructed environment does not match the saved model action "
+                f"space: expected {model.action_space}, got {env.action_space}."
+            )
 
-    obs, _info = env.reset(seed=args.seed)
-    frames = []
-    total_reward = 0.0
+        obs, _info = env.reset(seed=args.seed)
+        frames = []
+        total_reward = 0.0
 
-    for _step in range(args.steps):
-        frames.append(env.render())
-        action, _state = model.predict(obs, deterministic=True)
-        obs, reward, terminated, truncated, _info = env.step(action)
-        total_reward += float(reward)
-        if terminated or truncated:
+        for _step in range(args.steps):
             frames.append(env.render())
-            break
-
-    env.close()
+            action, _state = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, _info = env.step(action)
+            total_reward += float(reward)
+            if terminated or truncated:
+                frames.append(env.render())
+                break
+    finally:
+        env.close()
 
     imageio.mimsave(args.output_path, frames, fps=args.fps)
     result = {
         "env_id": ENV_ID,
         "model_path": str(args.model_path),
         "output_path": str(args.output_path),
-        "frame_stack": args.frame_stack,
-        "uses_action_history": args.action_history,
+        "frame_stack": frame_stack,
+        "uses_action_history": use_action_history,
         "seed": args.seed,
         "fps": args.fps,
         "frames": len(frames),

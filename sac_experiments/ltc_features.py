@@ -8,6 +8,31 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from torch import nn
 
 
+def _as_stacked_observations(
+    observations: torch.Tensor,
+    frame_stack: int,
+    obs_dim: int,
+) -> torch.Tensor:
+    """Normalize SB3's flattened or stacked batches to ``(batch, time, features)``."""
+
+    if observations.ndim == 2:
+        expected_features = frame_stack * obs_dim
+        if observations.shape[1] != expected_features:
+            raise ValueError(
+                "Expected flattened observations with "
+                f"{expected_features} features, got {observations.shape}."
+            )
+        return observations.reshape(observations.shape[0], frame_stack, obs_dim)
+    if observations.ndim == 3:
+        if tuple(observations.shape[1:]) != (frame_stack, obs_dim):
+            raise ValueError(
+                "Expected stacked observations with shape "
+                f"(batch, {frame_stack}, {obs_dim}), got {observations.shape}."
+            )
+        return observations
+    raise ValueError(f"Expected observations with 2 or 3 dims, got {observations.shape}.")
+
+
 class LTCTemporalFeaturesExtractor(BaseFeaturesExtractor):
     """Simple LTC-style feature extractor kept for backward-compatible comparison."""
 
@@ -38,7 +63,7 @@ class LTCTemporalFeaturesExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        observations = self._reshape_observations(observations)
+        observations = _as_stacked_observations(observations, self.frame_stack, self.obs_dim)
         h = observations.new_zeros((observations.shape[0], self.liquid_hidden_dim))
         tau = torch.nn.functional.softplus(self.log_tau) + 1e-3
 
@@ -49,14 +74,6 @@ class LTCTemporalFeaturesExtractor(BaseFeaturesExtractor):
             h = h + self.dt * ((-h + target) / tau)
 
         return self.output_layer(h)
-
-    def _reshape_observations(self, observations: torch.Tensor) -> torch.Tensor:
-        if observations.ndim == 2:
-            return observations.reshape(-1, self.frame_stack, self.obs_dim)
-        if observations.ndim == 3:
-            return observations
-        raise ValueError(f"Expected observations with 2 or 3 dims, got {observations.shape}.")
-
 
 class CircuitLTCTemporalFeaturesExtractor(BaseFeaturesExtractor):
     """LTC circuit feature extractor matching dx_i=-x_i/tau_i+sum_j f_ij(A_ij-x_i)."""
@@ -100,7 +117,7 @@ class CircuitLTCTemporalFeaturesExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        observations = self._reshape_observations(observations)
+        observations = _as_stacked_observations(observations, self.frame_stack, self.obs_dim)
         x = torch.tanh(self.input_projection(observations[:, 0, :]))
         sub_dt = self.dt / float(self.ode_unfolds)
         tau = torch.nn.functional.softplus(self.raw_tau) + self.tau_min
@@ -126,14 +143,6 @@ class CircuitLTCTemporalFeaturesExtractor(BaseFeaturesExtractor):
                 x = numerator / denominator
 
         return self.output_layer(x)
-
-    def _reshape_observations(self, observations: torch.Tensor) -> torch.Tensor:
-        if observations.ndim == 2:
-            return observations.reshape(-1, self.frame_stack, self.obs_dim)
-        if observations.ndim == 3:
-            return observations
-        raise ValueError(f"Expected observations with 2 or 3 dims, got {observations.shape}.")
-
 
 class ResidualCircuitLTCFeaturesExtractor(BaseFeaturesExtractor):
     """Circuit LTC encoder fused with a raw stacked-observation residual branch."""
@@ -183,15 +192,8 @@ class ResidualCircuitLTCFeaturesExtractor(BaseFeaturesExtractor):
         )
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
-        observations = self._reshape_observations(observations)
+        observations = _as_stacked_observations(observations, self.frame_stack, self.obs_dim)
         raw_observations = observations[:, :, : self.raw_obs_dim].reshape(observations.shape[0], -1)
         raw_features = self.raw_projection(raw_observations)
         ltc_features = self.ltc_encoder(observations)
         return self.fusion(torch.cat([raw_features, ltc_features], dim=-1))
-
-    def _reshape_observations(self, observations: torch.Tensor) -> torch.Tensor:
-        if observations.ndim == 2:
-            return observations.reshape(-1, self.frame_stack, self.obs_dim)
-        if observations.ndim == 3:
-            return observations
-        raise ValueError(f"Expected observations with 2 or 3 dims, got {observations.shape}.")

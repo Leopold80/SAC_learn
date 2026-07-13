@@ -21,8 +21,13 @@ DEFAULT_EVAL_FREQ = 10_000
 DEFAULT_SEED = 42
 DEFAULT_DEVICE = "cuda"
 DEFAULT_FRAME_STACK = 4
+DEFAULT_LEARNING_RATE = 7.3e-4
+DEFAULT_LEARNING_RATE_NAME = "linear_7.3e-4"
+DEFAULT_POLICY_NET_ARCH = (400, 300)
 DEFAULT_OUTPUT_DIR = Path("outputs/lunarlander")
 DEFAULT_TENSORBOARD_LOG = Path("runs/lunarlander")
+LUNARLANDER_OBSERVATION_DIM = 8
+LUNARLANDER_ACTION_DIM = 2
 
 SAC_CONFIG = {
     "buffer_size": 1_000_000,
@@ -135,6 +140,56 @@ def make_lunarlander_env(
     if monitor_dir is not None:
         monitor_dir.mkdir(parents=True, exist_ok=True)
     return Monitor(env, filename=str(monitor_dir / "monitor.csv") if monitor_dir else None)
+
+
+def lunarlander_dimensions(env: gym.Env) -> tuple[int, int]:
+    """Return the raw LunarLander observation and action dimensions below wrappers."""
+
+    base_env = env.unwrapped
+    observation_space = base_env.observation_space
+    action_space = base_env.action_space
+    if not isinstance(observation_space, spaces.Box) or not isinstance(action_space, spaces.Box):
+        raise TypeError("LunarLander must expose Box observation and action spaces.")
+    if len(observation_space.shape) != 1 or len(action_space.shape) != 1:
+        raise ValueError(
+            "Expected flat LunarLander observation and action spaces, got "
+            f"{observation_space.shape} and {action_space.shape}."
+        )
+    return int(observation_space.shape[0]), int(action_space.shape[0])
+
+
+def infer_lunarlander_observation_setup(observation_space: spaces.Space) -> tuple[int, bool]:
+    """Infer frame stacking and previous-action use from a saved model's input space."""
+
+    if not isinstance(observation_space, spaces.Box):
+        raise TypeError(
+            "LunarLander rendering requires a Box observation space, got "
+            f"{type(observation_space).__name__}."
+        )
+
+    shape = observation_space.shape
+    if shape == (LUNARLANDER_OBSERVATION_DIM,):
+        return 1, False
+    if len(shape) != 2:
+        raise ValueError(
+            "Cannot infer LunarLander observation setup from saved model shape "
+            f"{shape}. Expected ({LUNARLANDER_OBSERVATION_DIM},), "
+            f"(frames, {LUNARLANDER_OBSERVATION_DIM}), or "
+            f"(frames, {LUNARLANDER_OBSERVATION_DIM + LUNARLANDER_ACTION_DIM})."
+        )
+
+    frame_stack, observation_dim = (int(dimension) for dimension in shape)
+    if frame_stack < 1:
+        raise ValueError(f"frame_stack must be positive, got {frame_stack}.")
+    if observation_dim == LUNARLANDER_OBSERVATION_DIM:
+        return frame_stack, False
+    if observation_dim == LUNARLANDER_OBSERVATION_DIM + LUNARLANDER_ACTION_DIM:
+        return frame_stack, True
+    raise ValueError(
+        "Cannot infer whether the saved model uses action history from observation shape "
+        f"{shape}. Expected per-frame dimension {LUNARLANDER_OBSERVATION_DIM} or "
+        f"{LUNARLANDER_OBSERVATION_DIM + LUNARLANDER_ACTION_DIM}."
+    )
 
 
 def evaluate(model, eval_env: Monitor, episodes: int, label: str) -> tuple[float, float]:

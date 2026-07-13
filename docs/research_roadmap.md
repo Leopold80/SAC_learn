@@ -28,7 +28,7 @@ fixed-window LTC temporal feature extractor
 
 - 它对应早期的简化 LTC encoder，便于复查旧结果；
 - 代码轻，适合作为调试参考；
-- 但上一轮 500k 训练中后期退化明显，不适合作为默认主线；
+- 早期笔记曾记录过中后期退化，但当前仓库没有保留对应原始产物，因此不能把它当作已复现实验结论；
 - 后续正式对比应优先看 `mlp` 和公式版 `ltc`。
 
 当前命名约定：
@@ -157,6 +157,22 @@ a_t = π(h_t)
 这个方案更接近 full recurrent LTC-SAC，也更能体现 LTC 的连续时间动态特征。对于 LunarLander 这种简单环境，可以直接作为一个可训练验证的对比版本：效果好坏看实验结果，不需要预设结论。
 
 ---
+
+## 6. 实验基础设施 TODO
+
+### 并行环境采样 / 训练
+
+- [ ] 先为当前单环境 SAC 基线建立可复现的 `VecEnv` 版本（例如 `SubprocVecEnv`），保持算法、评估环境和保存口径不变。
+- [ ] 比较 `n_envs = 1, 2, 4, ...` 的 sample throughput、wall-clock、GPU 利用率、显存、final / best eval 和学习稳定性；不能只看 FPS。
+- [ ] 明确 vectorized callback 的 `eval_freq` 与 checkpoint 频率按环境步数还是总 transition 计，并在 summary 中记录 `n_envs`。
+- [ ] 为每个并行 worker 设计可追溯但不同的随机种子，并验证 train / eval 环境仍然严格分离。
+
+### 贝叶斯超参数搜索
+
+- [ ] 选定轻量的贝叶斯优化工具（例如 Optuna），以 YAML 定义搜索空间、trial 预算、pruner 和输出目录。
+- [ ] 优先搜索 learning rate、batch size、`tau`、learning starts、network 容量，以及 LTC 的 hidden size / ODE unfolds；先限制维度，避免盲目大搜索。
+- [ ] 目标函数应同时考虑 deterministic eval、收敛速度、训练成本和失败率；单 seed 的偶然 best reward 不能直接作为结论。
+- [ ] 将候选最优配置固定后，用独立 seeds 复验，并把 trial 参数、随机种子、wall-clock 与原始曲线写入版本化 summary。
 
 ## 6. 推荐实验分支
 

@@ -49,10 +49,10 @@ Minimal SAC example:
 import gymnasium as gym
 from stable_baselines3 import SAC
 
-env = gym.make("Pendulum-v1")
+env = gym.make("LunarLanderContinuous-v3")
 model = SAC("MlpPolicy", env, verbose=1)
 model.learn(total_timesteps=100_000)
-model.save("sac_pendulum")
+model.save("sac_lunarlander")
 ```
 
 Related project: [RL-Baselines3-Zoo](https://github.com/DLR-RM/rl-baselines3-zoo)

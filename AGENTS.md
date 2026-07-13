@@ -2,17 +2,16 @@
 
 ## Project Structure & Module Organization
 
-This repository contains small Stable-Baselines3 SAC experiments and notes.
+This repository contains Stable-Baselines3 SAC + LTC experiments for
+`LunarLanderContinuous-v3` only.
 
-- `sac_sb3_pendulum_demo.py`: Pendulum-v1 SAC training demo.
-- `render_sac_pendulum_gif.py`: renders a trained Pendulum policy to GIF.
-- `sac_sb3_lunarlander_demo.py`: LunarLanderContinuous-v3 SAC baseline.
+- `sac_sb3_lunarlander_demo.py`: thin entrypoint for the standalone, non-stacked LunarLander baseline.
 - `sac_lunarlander_ltc_compare.py`: thin entrypoint for YAML-driven LunarLander comparisons.
 - `render_sac_lunarlander_gif.py`: renders a trained LunarLander policy.
 - `configs/`: YAML experiment configs, including full and smoke LunarLander comparison runs.
-- `sac_experiments/`: reusable experiment package for environments, variants, LTC feature extractors, and workflows.
+- `sac_experiments/`: baseline / comparison workflows, environment helpers, variants, and LTC feature extractors.
 - `requirements-sac-demo.txt`: Python dependencies for the isolated demo environment.
-- `SAC_IMPLEMENTATIONS.md`, `SAC_SB3_TRICKS.md`, and `CODE_STRUCTURE.md`: research notes, experiment rationale, and code-reading guide.
+- `docs/`: architecture, research roadmap, Windows migration guide, and SAC implementation notes.
 - `outputs/`, `runs/`, and `training_logs/`: generated artifacts, TensorBoard logs, checkpoints, summaries, and process logs.
 
 ## Build, Test, and Development Commands
@@ -27,13 +26,20 @@ conda run -n sac_sb3_demo python -m pip install -r requirements-sac-demo.txt
 Syntax check scripts:
 
 ```bash
-conda run -n sac_sb3_demo python -m py_compile sac_sb3_pendulum_demo.py sac_sb3_lunarlander_demo.py sac_lunarlander_ltc_compare.py
+conda run -n sac_sb3_demo python -m py_compile \
+  sac_sb3_lunarlander_demo.py \
+  sac_lunarlander_ltc_compare.py \
+  render_sac_lunarlander_gif.py \
+  sac_experiments/lunarlander_baseline.py \
+  sac_experiments/lunarlander_compare.py \
+  sac_experiments/lunarlander_common.py \
+  sac_experiments/variants.py \
+  sac_experiments/ltc_features.py
 ```
 
 Run examples:
 
 ```bash
-conda run -n sac_sb3_demo python sac_sb3_pendulum_demo.py
 conda run -n sac_sb3_demo python sac_sb3_lunarlander_demo.py
 conda run -n sac_sb3_demo python sac_lunarlander_ltc_compare.py
 ```

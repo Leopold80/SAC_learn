@@ -30,7 +30,3 @@ ltc:
   tau_min: 0.1
   ode_unfolds: 4
   reversal_init_scale: 1.0
-
-action_history:
-  raw_obs_dim: 8
-  action_dim: 2

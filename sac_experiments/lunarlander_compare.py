@@ -23,7 +23,10 @@ from sac_experiments.lunarlander_common import (
     DEFAULT_EVAL_EPISODES,
     DEFAULT_EVAL_FREQ,
     DEFAULT_FRAME_STACK,
+    DEFAULT_LEARNING_RATE,
+    DEFAULT_LEARNING_RATE_NAME,
     DEFAULT_OUTPUT_DIR,
+    DEFAULT_POLICY_NET_ARCH,
     DEFAULT_SEED,
     DEFAULT_TENSORBOARD_LOG,
     DEFAULT_TIMESTEPS,
@@ -33,6 +36,7 @@ from sac_experiments.lunarlander_common import (
     configure_torch,
     evaluate,
     linear_schedule,
+    lunarlander_dimensions,
     make_lunarlander_env,
 )
 from sac_experiments.variants import (
@@ -70,10 +74,6 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "tau_min": 0.1,
         "ode_unfolds": 4,
         "reversal_init_scale": 1.0,
-    },
-    "action_history": {
-        "raw_obs_dim": 8,
-        "action_dim": 2,
     },
 }
 
@@ -179,6 +179,8 @@ def build_variant_summary(
     best_model_path: Path,
     eval_log_path: Path,
     tensorboard_log: Path,
+    raw_obs_dim: int,
+    action_dim: int,
 ) -> dict[str, Any]:
     return {
         "variant": variant,
@@ -190,12 +192,12 @@ def build_variant_summary(
         "timesteps": config.timesteps,
         "frame_stack": config.frame_stack,
         "uses_action_history": uses_action_history(variant),
-        "raw_obs_dim": config.action_history["raw_obs_dim"],
-        "action_dim": config.action_history["action_dim"],
-        "learning_rate": "linear_7.3e-4",
+        "raw_obs_dim": raw_obs_dim,
+        "action_dim": action_dim,
+        "learning_rate": DEFAULT_LEARNING_RATE_NAME,
         **SAC_CONFIG,
         "policy_kwargs": {
-            "net_arch": [400, 300],
+            "net_arch": list(DEFAULT_POLICY_NET_ARCH),
             "features_extractor": feature_extractor_name(variant),
         },
         "ltc": ltc_config_for_summary(config, variant),
@@ -248,69 +250,72 @@ def train_variant(config: SimpleNamespace, variant: Variant, device: str) -> dic
         monitor_dir / "eval",
         use_action_history=use_action_history,
     )
+    try:
+        raw_obs_dim, action_dim = lunarlander_dimensions(train_env)
+        model = SAC(
+            "MlpPolicy",
+            train_env,
+            learning_rate=linear_schedule(DEFAULT_LEARNING_RATE),
+            **SAC_CONFIG,
+            policy_kwargs=variant_policy_kwargs(config, variant, raw_obs_dim=raw_obs_dim),
+            tensorboard_log=str(variant_tensorboard_log),
+            seed=config.seed,
+            device=device,
+            verbose=1,
+        )
 
-    model = SAC(
-        "MlpPolicy",
-        train_env,
-        learning_rate=linear_schedule(7.3e-4),
-        **SAC_CONFIG,
-        policy_kwargs=variant_policy_kwargs(config, variant),
-        tensorboard_log=str(variant_tensorboard_log),
-        seed=config.seed,
-        device=device,
-        verbose=1,
-    )
+        before_eval = evaluate(model, eval_env, config.eval_episodes, f"{variant} before training")
 
-    before_eval = evaluate(model, eval_env, config.eval_episodes, f"{variant} before training")
+        callbacks = CallbackList(
+            [
+                EvalCallback(
+                    eval_env,
+                    best_model_save_path=str(best_model_dir),
+                    log_path=str(variant_output_dir / "eval_logs"),
+                    eval_freq=config.eval_freq,
+                    n_eval_episodes=config.eval_episodes,
+                    deterministic=True,
+                    render=False,
+                ),
+                CheckpointCallback(
+                    save_freq=config.eval_freq,
+                    save_path=str(checkpoint_dir),
+                    name_prefix=f"sac_lunarlander_{variant}",
+                    save_replay_buffer=False,
+                    save_vecnormalize=False,
+                ),
+            ]
+        )
 
-    callbacks = CallbackList(
-        [
-            EvalCallback(
-                eval_env,
-                best_model_save_path=str(best_model_dir),
-                log_path=str(variant_output_dir / "eval_logs"),
-                eval_freq=config.eval_freq,
-                n_eval_episodes=config.eval_episodes,
-                deterministic=True,
-                render=False,
-            ),
-            CheckpointCallback(
-                save_freq=config.eval_freq,
-                save_path=str(checkpoint_dir),
-                name_prefix=f"sac_lunarlander_{variant}",
-                save_replay_buffer=False,
-                save_vecnormalize=False,
-            ),
-        ]
-    )
+        model.learn(
+            total_timesteps=config.timesteps,
+            callback=callbacks,
+            log_interval=4,
+            tb_log_name=tb_run_name,
+            progress_bar=True,
+        )
 
-    model.learn(
-        total_timesteps=config.timesteps,
-        callback=callbacks,
-        log_interval=4,
-        tb_log_name=tb_run_name,
-        progress_bar=True,
-    )
+        model.save(final_model_path)
+        loaded_model = SAC.load(final_model_path, env=eval_env, device=device)
+        after_eval = evaluate(loaded_model, eval_env, config.eval_episodes, f"{variant} after training")
 
-    model.save(final_model_path)
-    loaded_model = SAC.load(final_model_path, env=eval_env, device=device)
-    after_eval = evaluate(loaded_model, eval_env, config.eval_episodes, f"{variant} after training")
-
-    summary = build_variant_summary(
-        config=config,
-        variant=variant,
-        before_eval=before_eval,
-        after_eval=after_eval,
-        final_model_path=final_model_path.with_suffix(".zip"),
-        best_model_path=best_model_path,
-        eval_log_path=eval_log_path,
-        tensorboard_log=variant_tensorboard_log / f"{tb_run_name}_1",
-    )
-    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
-
-    train_env.close()
-    eval_env.close()
-    return summary
+        summary = build_variant_summary(
+            config=config,
+            variant=variant,
+            before_eval=before_eval,
+            after_eval=after_eval,
+            final_model_path=final_model_path.with_suffix(".zip"),
+            best_model_path=best_model_path,
+            eval_log_path=eval_log_path,
+            tensorboard_log=variant_tensorboard_log / f"{tb_run_name}_1",
+            raw_obs_dim=raw_obs_dim,
+            action_dim=action_dim,
+        )
+        summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        return summary
+    finally:
+        train_env.close()
+        eval_env.close()
 
 
 def run_experiment(config: SimpleNamespace) -> Path:
