@@ -67,6 +67,10 @@ four-environment step collects four transitions, this config also sets
 `gradient_steps: 4` to preserve the single-environment baseline's approximate
 gradient-update/transition ratio.
 
+For the precise VecEnv step semantics, replay-buffer layout, callback-frequency
+equations, seed policy, limitations, and comparison protocol, see
+[`parallel_sac_training.md`](parallel_sac_training.md).
+
 ## Main Modules
 
 - `sac_experiments/config.py`: grouped YAML schema and validation.

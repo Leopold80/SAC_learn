@@ -162,6 +162,8 @@ a_t = π(h_t)
 
 ### 并行环境采样 / 训练
 
+当前实现和实验口径详见 [`parallel_sac_training.md`](parallel_sac_training.md)。
+
 - [x] 先为当前单环境 SAC 基线建立可复现的 `VecEnv` 版本（`n_envs=1` 使用 `DummyVecEnv`，多环境使用 `SubprocVecEnv`），保持算法、评估环境和保存口径不变。
 - [ ] 比较 `n_envs = 1, 2, 4, ...` 的 sample throughput、wall-clock、GPU 利用率、显存、final / best eval 和学习稳定性；不能只看 FPS。
 - [x] `eval_freq` 与 checkpoint 频率统一按总 transition 计，并在 summary 中记录 `n_envs`、VecEnv 类型、内部 callback 频率、wall-clock 和吞吐率。

@@ -6,13 +6,14 @@
 
 | 入口 / 文档 | 用途 |
 |---|---|
-| `main.py` | 唯一训练入口；读取 YAML 后调用统一训练流程。 |
-| `render_sac_lunarlander_gif.py` | 根据保存模型的 observation space 自动匹配环境并输出 GIF。 |
+| [`main.py`](main.py) | 唯一训练入口；读取 YAML 后调用统一训练流程。 |
+| [`render_sac_lunarlander_gif.py`](render_sac_lunarlander_gif.py) | 根据保存模型的 observation space 自动匹配环境并输出 GIF。 |
 | `configs/` | 正式、单帧 baseline、并行采样与 smoke YAML 配置。 |
-| `docs/architecture.md` | 模块职责与推荐阅读路径。 |
-| `docs/research_roadmap.md` | LTC 设计说明与研究路线。 |
-| `docs/windows_migration.md` | Windows 复现实验说明。 |
-| `docs/sac_implementations.md` | SAC 框架选型笔记。 |
+| [`docs/architecture.md`](docs/architecture.md) | 模块职责、配置契约与推荐阅读路径。 |
+| [`docs/parallel_sac_training.md`](docs/parallel_sac_training.md) | 并行采样架构、LaTeX 计数公式、replay buffer、seed、callback 与公平对比协议。 |
+| [`docs/research_roadmap.md`](docs/research_roadmap.md) | LTC 设计说明与研究路线。 |
+| [`docs/sac_implementations.md`](docs/sac_implementations.md) | SAC 框架选型笔记。 |
+| [`docs/windows_migration.md`](docs/windows_migration.md) | Windows 复现实验说明。 |
 
 ## 研究目标
 
