@@ -9,9 +9,6 @@ from sac_experiments.ltc_features import (
     LTCTemporalFeaturesExtractor,
     ResidualCircuitLTCFeaturesExtractor,
 )
-from sac_experiments.lunarlander_common import DEFAULT_POLICY_NET_ARCH
-
-
 Variant = Literal["mlp", "ltc", "ltc_residual", "ltc_residual_action", "ltc_simple"]
 DEFAULT_VARIANTS: tuple[Variant, ...] = (
     "mlp",
@@ -36,8 +33,8 @@ def canonical_variant(variant: str) -> Variant:
     return canonical  # type: ignore[return-value]
 
 
-def base_policy_kwargs() -> dict[str, Any]:
-    return {"net_arch": list(DEFAULT_POLICY_NET_ARCH)}
+def base_policy_kwargs(config) -> dict[str, Any]:
+    return {"net_arch": list(config.policy_net_arch)}
 
 
 def uses_action_history(variant: Variant) -> bool:
@@ -52,8 +49,8 @@ def tensorboard_run_name(variant: Variant) -> str:
     return variant
 
 
-def circuit_ltc_kwargs(args) -> dict[str, Any]:
-    ltc = args.ltc
+def circuit_ltc_kwargs(config) -> dict[str, Any]:
+    ltc = config.ltc
     return {
         "liquid_hidden_dim": ltc["liquid_hidden_dim"],
         "features_dim": ltc["features_dim"],
@@ -65,16 +62,16 @@ def circuit_ltc_kwargs(args) -> dict[str, Any]:
 
 
 def variant_policy_kwargs(
-    args,
+    config,
     variant: Variant,
     raw_obs_dim: int | None = None,
 ) -> dict[str, Any]:
     if variant == "mlp":
-        return base_policy_kwargs()
+        return base_policy_kwargs(config)
     if variant == "ltc_simple":
-        ltc = args.ltc
+        ltc = config.ltc
         return {
-            **base_policy_kwargs(),
+            **base_policy_kwargs(config),
             "features_extractor_class": LTCTemporalFeaturesExtractor,
             "features_extractor_kwargs": {
                 "liquid_hidden_dim": ltc["liquid_hidden_dim"],
@@ -84,14 +81,14 @@ def variant_policy_kwargs(
         }
     if variant == "ltc":
         return {
-            **base_policy_kwargs(),
+            **base_policy_kwargs(config),
             "features_extractor_class": CircuitLTCTemporalFeaturesExtractor,
-            "features_extractor_kwargs": circuit_ltc_kwargs(args),
+            "features_extractor_kwargs": circuit_ltc_kwargs(config),
         }
     if variant in {"ltc_residual", "ltc_residual_action"}:
-        ltc = args.ltc
+        ltc = config.ltc
         extractor_kwargs = {
-            **circuit_ltc_kwargs(args),
+            **circuit_ltc_kwargs(config),
             "raw_features_dim": ltc["raw_features_dim"],
             "fusion_hidden_dim": ltc["fusion_hidden_dim"],
         }
@@ -100,7 +97,7 @@ def variant_policy_kwargs(
                 raise ValueError("raw_obs_dim is required for the action-history variant.")
             extractor_kwargs["raw_obs_dim"] = raw_obs_dim
         return {
-            **base_policy_kwargs(),
+            **base_policy_kwargs(config),
             "features_extractor_class": ResidualCircuitLTCFeaturesExtractor,
             "features_extractor_kwargs": extractor_kwargs,
         }

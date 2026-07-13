@@ -59,11 +59,10 @@ Run static checks:
 
 ```powershell
 python -m py_compile `
-  sac_lunarlander_ltc_compare.py `
-  sac_sb3_lunarlander_demo.py `
+  main.py `
   render_sac_lunarlander_gif.py `
-  sac_experiments/lunarlander_baseline.py `
-  sac_experiments/lunarlander_compare.py `
+  sac_experiments/config.py `
+  sac_experiments/training.py `
   sac_experiments/lunarlander_common.py `
   sac_experiments/variants.py `
   sac_experiments/ltc_features.py
@@ -72,13 +71,13 @@ python -m py_compile `
 Check YAML config loading:
 
 ```powershell
-python -c "from pathlib import Path; from sac_experiments.lunarlander_compare import load_config; c=load_config(Path('configs/lunarlander.yaml')); print(c.variants)"
+python -c "from pathlib import Path; from sac_experiments.config import load_config; c=load_config(Path('configs/lunarlander.yaml')); print(c.variants)"
 ```
 
 Expected:
 
 ```text
-['mlp', 'ltc', 'ltc_residual', 'ltc_residual_action']
+('mlp', 'ltc', 'ltc_residual', 'ltc_residual_action')
 ```
 
 Check observation shapes:
@@ -99,34 +98,26 @@ Expected:
 Smoke test:
 
 ```powershell
-python sac_lunarlander_ltc_compare.py --config configs/smoke.yaml
+python main.py --config configs/smoke.yaml
 ```
 
 Full sequential run:
 
 ```powershell
-python sac_lunarlander_ltc_compare.py --config configs/lunarlander.yaml
+python main.py --config configs/lunarlander.yaml
 ```
 
-The Linux workflow often starts four variants as four background processes.
-Do not copy Linux `setsid`, `bash -lc`, `OMP_NUM_THREADS=...`, or SSH tunnel
-commands directly into PowerShell. On Windows, either run variants sequentially
-with the YAML entrypoint, or create a small Python launcher that starts four
-subprocesses with these environment variables:
+Single-frame baseline:
 
-```text
-OMP_NUM_THREADS=1
-MKL_NUM_THREADS=1
-OPENBLAS_NUM_THREADS=1
-NUMEXPR_NUM_THREADS=1
-VARIANT=<mlp|ltc|ltc_residual|ltc_residual_action>
-RUN_TAG=<your_run_tag>
+```powershell
+python main.py --config configs/baseline.yaml
 ```
 
-For a parallel Windows launcher, call `load_config()`, set `c.variants` to a
-single variant, append `RUN_TAG` to `c.output_dir` and `c.tensorboard_log`, then
-call `run_experiment(c)`. This mirrors the Linux parallel workflow without
-shell-specific behavior.
+The configured variants run sequentially. Parallel environment sampling remains
+a roadmap item. If separate one-variant processes are launched manually, give
+each YAML file a unique `output.run_tag` so models and TensorBoard logs cannot
+overwrite each other. The runner also refuses to start when either resolved run
+directory already contains files.
 
 ## TensorBoard on Windows
 
@@ -174,7 +165,7 @@ python render_sac_lunarlander_gif.py `
 
 ## GPU Notes
 
-The code defaults to `device: cuda` in `configs/lunarlander.yaml`. If CUDA is
+The code defaults to `training.device: cuda` in `configs/lunarlander.yaml`. If CUDA is
 not visible, the full run should fail loudly instead of silently using CPU. For
 debugging only, use `configs/smoke.yaml`, where CPU fallback is allowed.
 

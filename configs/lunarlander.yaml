@@ -1,25 +1,46 @@
-# Full LunarLanderContinuous-v3 SAC comparison.
-# Edit this file instead of passing many command-line flags.
+# Full LunarLanderContinuous-v3 SAC + LTC comparison.
 
-variants:
-  - mlp
-  - ltc
-  - ltc_residual
-  - ltc_residual_action
+experiment:
+  environment: LunarLanderContinuous-v3
+  algorithm: SAC
+  policy: MlpPolicy
+  variants:
+    - mlp
+    - ltc
+    - ltc_residual
+    - ltc_residual_action
 
-timesteps: 500000
-eval_episodes: 10
-eval_freq: 10000
-seed: 42
-frame_stack: 4
+environment:
+  frame_stack: 4
 
-# Formal runs should use CUDA. Use configs/smoke.yaml for CPU debugging.
-device: cuda
-allow_cpu: false
+training:
+  timesteps: 500000
+  seed: 42
+  device: cuda
+  allow_cpu: false
+  progress_bar: true
 
-output_dir: outputs/lunarlander
-tensorboard_log: runs/lunarlander
-run_tag: null
+evaluation:
+  episodes: 10
+  frequency: 10000
+
+output:
+  directory: outputs/lunarlander
+  tensorboard_log: runs/lunarlander
+  run_tag: null
+
+sac:
+  learning_rate: 0.00073
+  learning_rate_schedule: linear
+  policy_net_arch: [400, 300]
+  buffer_size: 1000000
+  batch_size: 256
+  ent_coef: auto
+  gamma: 0.99
+  tau: 0.01
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10000
 
 ltc:
   liquid_hidden_dim: 128

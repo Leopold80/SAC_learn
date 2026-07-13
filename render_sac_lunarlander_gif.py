@@ -23,8 +23,8 @@ from sac_experiments.lunarlander_common import (
 )
 
 
-DEFAULT_MODEL_PATH = Path("outputs/sac_lunarlander/best_model/best_model.zip")
-DEFAULT_OUTPUT_PATH = Path("outputs/sac_lunarlander/lunarlander_best.gif")
+DEFAULT_MODEL_PATH = Path("outputs/lunarlander_baseline/mlp/best_model/best_model.zip")
+DEFAULT_OUTPUT_PATH = Path("outputs/lunarlander_baseline/visualizations/mlp_best.gif")
 DEFAULT_STEPS = 1_000
 DEFAULT_SEED = 123
 DEFAULT_FPS = 30

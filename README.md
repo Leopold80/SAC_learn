@@ -6,10 +6,9 @@
 
 | 入口 / 文档 | 用途 |
 |---|---|
-| `sac_sb3_lunarlander_demo.py` | 非 stack 的单模型 SAC 教学 baseline；实现位于 `sac_experiments/lunarlander_baseline.py`。 |
-| `sac_lunarlander_ltc_compare.py` | YAML 驱动的正式 fixed-window LTC 对比入口。 |
+| `main.py` | 唯一训练入口；读取 YAML 后调用统一训练流程。 |
 | `render_sac_lunarlander_gif.py` | 根据保存模型的 observation space 自动匹配环境并输出 GIF。 |
-| `configs/` | 正式与 smoke YAML 配置。 |
+| `configs/` | 正式、单帧 baseline 与 smoke YAML 配置。 |
 | `docs/architecture.md` | 模块职责与推荐阅读路径。 |
 | `docs/research_roadmap.md` | LTC 设计说明与研究路线。 |
 | `docs/windows_migration.md` | Windows 复现实验说明。 |
@@ -94,27 +93,28 @@ conda create -n sac_sb3_demo --clone cybernetic_env
 conda run -n sac_sb3_demo python -m pip install -r requirements-sac-demo.txt
 ```
 
+默认正式对比：
+
+```bash
+conda run -n sac_sb3_demo python main.py
+```
+
 快速检查：
 
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python sac_lunarlander_ltc_compare.py \
-  --config configs/smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 ```
 
-独立 baseline（单帧 8 维 observation）：
+单帧 8 维 observation baseline：
 
 ```bash
-conda run -n sac_sb3_demo python sac_sb3_lunarlander_demo.py
+conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 ```
 
-正式配置在：
+`main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac` 和 `ltc` 分组。未知字段会直接报错，避免拼写错误被静默忽略。
 
-```text
-configs/lunarlander.yaml
-```
-
-当前 compare 入口会按 `variants` 的顺序训练四组，而不是自行并行。若要并行启动多个单 variant 进程，必须为每个进程设置不同的 `run_tag`，避免模型和 TensorBoard 文件互相覆盖。TensorBoard run 名保持扁平：
+训练器会按 `experiment.variants` 的顺序训练各组，而不是自行并行。若要并行启动多个单 variant 进程，必须为每个进程设置不同的 `output.run_tag`，避免模型和 TensorBoard 文件互相覆盖。TensorBoard run 名保持扁平：
 
 ```text
 mlp_1
@@ -123,7 +123,7 @@ ltc_res_1
 ltc_act_1
 ```
 
-`run_tag: null` 会直接复用 `output_dir` 与 `tensorboard_log`；正式实验和 multi-seed 实验应设置唯一 tag。
+`output.run_tag: null` 会把首次运行直接写入 `output.directory` 与 `output.tensorboard_log`。训练器拒绝写入已有内容的运行目录，防止覆盖模型和评估结果；再次运行、正式实验和 multi-seed 实验必须设置新的单段安全 tag（字母、数字、点、下划线或连字符）。
 
 SSH 端口转发：
 
@@ -143,11 +143,10 @@ http://127.0.0.1:6009
 
 ```bash
 conda run -n sac_sb3_demo python -m py_compile \
-  sac_lunarlander_ltc_compare.py \
-  sac_sb3_lunarlander_demo.py \
+  main.py \
   render_sac_lunarlander_gif.py \
-  sac_experiments/lunarlander_baseline.py \
-  sac_experiments/lunarlander_compare.py \
+  sac_experiments/config.py \
+  sac_experiments/training.py \
   sac_experiments/lunarlander_common.py \
   sac_experiments/variants.py \
   sac_experiments/ltc_features.py
@@ -156,13 +155,13 @@ conda run -n sac_sb3_demo python -m py_compile \
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
 conda run -n sac_sb3_demo python -c \
-  "from pathlib import Path; from sac_experiments.lunarlander_compare import load_config; c=load_config(Path('configs/lunarlander.yaml')); print(c.variants)"
+  "from pathlib import Path; from sac_experiments.config import load_config; c=load_config(Path('configs/lunarlander.yaml')); print(c.variants)"
 ```
 
 期望：
 
 ```text
-['mlp', 'ltc', 'ltc_residual', 'ltc_residual_action']
+('mlp', 'ltc', 'ltc_residual', 'ltc_residual_action')
 ```
 
 ### Observation shape 检查

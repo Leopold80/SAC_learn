@@ -1,37 +1,21 @@
-"""Training workflow for LunarLander SAC comparison experiments.
-
-The root script is intentionally thin. Most experiment behavior lives here so
-the training flow can be read top-to-bottom and reused by future experiments.
-"""
+"""Unified LunarLander SAC training workflow."""
 
 from __future__ import annotations
 
 import argparse
 import json
-from collections.abc import Mapping
-from copy import deepcopy
+from collections.abc import Sequence
+from contextlib import ExitStack, closing
 from pathlib import Path
-from types import SimpleNamespace
 from typing import Any
 
+import stable_baselines3 as sb3
 from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.utils import set_random_seed
 
+from sac_experiments.config import DEFAULT_CONFIG_PATH, ExperimentConfig, load_config
 from sac_experiments.lunarlander_common import (
-    DEFAULT_DEVICE,
-    DEFAULT_EVAL_EPISODES,
-    DEFAULT_EVAL_FREQ,
-    DEFAULT_FRAME_STACK,
-    DEFAULT_LEARNING_RATE,
-    DEFAULT_LEARNING_RATE_NAME,
-    DEFAULT_OUTPUT_DIR,
-    DEFAULT_POLICY_NET_ARCH,
-    DEFAULT_SEED,
-    DEFAULT_TENSORBOARD_LOG,
-    DEFAULT_TIMESTEPS,
-    ENV_ID,
-    SAC_CONFIG,
     best_eval_reward,
     configure_torch,
     evaluate,
@@ -40,10 +24,7 @@ from sac_experiments.lunarlander_common import (
     make_lunarlander_env,
 )
 from sac_experiments.variants import (
-    ALL_VARIANTS,
-    DEFAULT_VARIANTS,
     Variant,
-    canonical_variant,
     feature_extractor_name,
     tensorboard_run_name,
     uses_action_history,
@@ -51,96 +32,26 @@ from sac_experiments.variants import (
 )
 
 
-DEFAULT_CONFIG_PATH = Path("configs/lunarlander.yaml")
-
-DEFAULT_CONFIG: dict[str, Any] = {
-    "variants": list(DEFAULT_VARIANTS),
-    "timesteps": DEFAULT_TIMESTEPS,
-    "eval_episodes": DEFAULT_EVAL_EPISODES,
-    "eval_freq": DEFAULT_EVAL_FREQ,
-    "seed": DEFAULT_SEED,
-    "frame_stack": DEFAULT_FRAME_STACK,
-    "device": DEFAULT_DEVICE,
-    "allow_cpu": False,
-    "output_dir": str(DEFAULT_OUTPUT_DIR),
-    "tensorboard_log": str(DEFAULT_TENSORBOARD_LOG),
-    "run_tag": None,
-    "ltc": {
-        "liquid_hidden_dim": 128,
-        "features_dim": 256,
-        "raw_features_dim": 128,
-        "fusion_hidden_dim": 256,
-        "dt": 1.0,
-        "tau_min": 0.1,
-        "ode_unfolds": 4,
-        "reversal_init_scale": 1.0,
-    },
-}
-
-
-def parse_args() -> argparse.Namespace:
+def parse_args(
+    argv: Sequence[str] | None = None,
+    default_config_path: Path = DEFAULT_CONFIG_PATH,
+) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run LunarLanderContinuous-v3 SAC comparison from a YAML config."
+        description="Train configured SAC variants on LunarLanderContinuous-v3."
     )
     parser.add_argument(
         "--config",
         type=Path,
-        default=DEFAULT_CONFIG_PATH,
-        help=f"YAML config path. Default: {DEFAULT_CONFIG_PATH}",
+        default=default_config_path,
+        help=f"YAML experiment config. Default: {default_config_path}",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def load_yaml_file(path: Path) -> dict[str, Any]:
-    try:
-        import yaml
-    except ModuleNotFoundError as exc:
-        raise ModuleNotFoundError(
-            "PyYAML is required for YAML configs. Install with "
-            "`conda run -n sac_sb3_demo python -m pip install -r requirements-sac-demo.txt`."
-        ) from exc
-
-    if not path.exists():
-        raise FileNotFoundError(f"Config file not found: {path}")
-
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if data is None:
-        return {}
-    if not isinstance(data, dict):
-        raise TypeError(f"Config root must be a mapping, got {type(data).__name__}.")
-    return data
-
-
-def deep_merge(base: dict[str, Any], override: Mapping[str, Any]) -> dict[str, Any]:
-    result = deepcopy(base)
-    for key, value in override.items():
-        if isinstance(value, Mapping) and isinstance(result.get(key), dict):
-            result[key] = deep_merge(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def load_config(path: Path) -> SimpleNamespace:
-    config = deep_merge(DEFAULT_CONFIG, load_yaml_file(path))
-    config["variants"] = [canonical_variant(variant) for variant in config["variants"]]
-    unknown_variants = sorted(set(config["variants"]) - set(ALL_VARIANTS))
-    if unknown_variants:
-        raise ValueError(f"Unknown variants after canonicalization: {unknown_variants}")
-
-    run_tag = config.get("run_tag")
-    output_dir = Path(config["output_dir"])
-    tensorboard_log = Path(config["tensorboard_log"])
-    if run_tag:
-        output_dir = output_dir / str(run_tag)
-        tensorboard_log = tensorboard_log / str(run_tag)
-
-    config["output_dir"] = output_dir
-    config["tensorboard_log"] = tensorboard_log
-    return SimpleNamespace(**config)
-
-
-def ltc_config_for_summary(config: SimpleNamespace, variant: Variant) -> dict[str, Any] | None:
+def ltc_config_for_summary(
+    config: ExperimentConfig,
+    variant: Variant,
+) -> dict[str, Any] | None:
     if variant not in {"ltc_simple", "ltc", "ltc_residual", "ltc_residual_action"}:
         return None
 
@@ -171,7 +82,7 @@ def ltc_config_for_summary(config: SimpleNamespace, variant: Variant) -> dict[st
 
 
 def build_variant_summary(
-    config: SimpleNamespace,
+    config: ExperimentConfig,
     variant: Variant,
     before_eval: tuple[float, float],
     after_eval: tuple[float, float],
@@ -182,22 +93,27 @@ def build_variant_summary(
     raw_obs_dim: int,
     action_dim: int,
 ) -> dict[str, Any]:
+    learning_rate = {
+        "initial": config.learning_rate,
+        "schedule": config.learning_rate_schedule,
+    }
     return {
+        "config": str(config.config_path),
         "variant": variant,
-        "env_id": ENV_ID,
-        "algorithm": "SAC",
-        "algorithm_source": "stable-baselines3==2.7.0",
-        "policy": "MlpPolicy",
+        "env_id": config.env_id,
+        "algorithm": config.algorithm,
+        "algorithm_source": f"stable-baselines3=={sb3.__version__}",
+        "policy": config.policy,
         "seed": config.seed,
         "timesteps": config.timesteps,
         "frame_stack": config.frame_stack,
         "uses_action_history": uses_action_history(variant),
         "raw_obs_dim": raw_obs_dim,
         "action_dim": action_dim,
-        "learning_rate": DEFAULT_LEARNING_RATE_NAME,
-        **SAC_CONFIG,
+        "learning_rate": learning_rate,
+        **dict(config.sac),
         "policy_kwargs": {
-            "net_arch": list(DEFAULT_POLICY_NET_ARCH),
+            "net_arch": list(config.policy_net_arch),
             "features_extractor": feature_extractor_name(variant),
         },
         "ltc": ltc_config_for_summary(config, variant),
@@ -218,12 +134,14 @@ def build_variant_summary(
     }
 
 
-def train_variant(config: SimpleNamespace, variant: Variant, device: str) -> dict[str, Any]:
+def train_variant(
+    config: ExperimentConfig,
+    variant: Variant,
+    device: str,
+) -> dict[str, Any]:
     print(f"\n=== Training variant: {variant} ===")
 
     variant_output_dir = config.output_dir / variant
-    variant_tensorboard_log = config.tensorboard_log
-    tb_run_name = tensorboard_run_name(variant)
     monitor_dir = variant_output_dir / "monitor"
     best_model_dir = variant_output_dir / "best_model"
     checkpoint_dir = variant_output_dir / "checkpoints"
@@ -231,41 +149,62 @@ def train_variant(config: SimpleNamespace, variant: Variant, device: str) -> dic
     best_model_path = best_model_dir / "best_model.zip"
     summary_path = variant_output_dir / "eval_summary.json"
     eval_log_path = variant_output_dir / "eval_logs" / "evaluations.npz"
+    tb_run_name = tensorboard_run_name(variant)
 
-    variant_output_dir.mkdir(parents=True, exist_ok=True)
-    variant_tensorboard_log.mkdir(parents=True, exist_ok=True)
-    best_model_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    for directory in (
+        variant_output_dir,
+        config.tensorboard_log,
+        best_model_dir,
+        checkpoint_dir,
+    ):
+        directory.mkdir(parents=True, exist_ok=True)
 
     use_action_history = uses_action_history(variant)
-    train_env = make_lunarlander_env(
-        config.seed,
-        config.frame_stack,
-        monitor_dir / "train",
-        use_action_history=use_action_history,
-    )
-    eval_env = make_lunarlander_env(
-        config.seed + 1,
-        config.frame_stack,
-        monitor_dir / "eval",
-        use_action_history=use_action_history,
-    )
-    try:
+    with ExitStack() as env_stack:
+        train_env = env_stack.enter_context(
+            closing(
+                make_lunarlander_env(
+                    config.seed,
+                    config.frame_stack,
+                    monitor_dir / "train",
+                    use_action_history=use_action_history,
+                )
+            )
+        )
+        eval_env = env_stack.enter_context(
+            closing(
+                make_lunarlander_env(
+                    config.seed + 1,
+                    config.frame_stack,
+                    monitor_dir / "eval",
+                    use_action_history=use_action_history,
+                )
+            )
+        )
         raw_obs_dim, action_dim = lunarlander_dimensions(train_env)
+        learning_rate = (
+            linear_schedule(config.learning_rate)
+            if config.learning_rate_schedule == "linear"
+            else config.learning_rate
+        )
         model = SAC(
-            "MlpPolicy",
+            config.policy,
             train_env,
-            learning_rate=linear_schedule(DEFAULT_LEARNING_RATE),
-            **SAC_CONFIG,
+            learning_rate=learning_rate,
+            **dict(config.sac),
             policy_kwargs=variant_policy_kwargs(config, variant, raw_obs_dim=raw_obs_dim),
-            tensorboard_log=str(variant_tensorboard_log),
+            tensorboard_log=str(config.tensorboard_log),
             seed=config.seed,
             device=device,
             verbose=1,
         )
 
-        before_eval = evaluate(model, eval_env, config.eval_episodes, f"{variant} before training")
-
+        before_eval = evaluate(
+            model,
+            eval_env,
+            config.eval_episodes,
+            f"{variant} before training",
+        )
         callbacks = CallbackList(
             [
                 EvalCallback(
@@ -292,12 +231,19 @@ def train_variant(config: SimpleNamespace, variant: Variant, device: str) -> dic
             callback=callbacks,
             log_interval=4,
             tb_log_name=tb_run_name,
-            progress_bar=True,
+            progress_bar=config.progress_bar,
         )
-
+        tensorboard_run_dir = (
+            Path(model.logger.dir) if model.logger.dir else config.tensorboard_log
+        )
         model.save(final_model_path)
         loaded_model = SAC.load(final_model_path, env=eval_env, device=device)
-        after_eval = evaluate(loaded_model, eval_env, config.eval_episodes, f"{variant} after training")
+        after_eval = evaluate(
+            loaded_model,
+            eval_env,
+            config.eval_episodes,
+            f"{variant} after training",
+        )
 
         summary = build_variant_summary(
             config=config,
@@ -307,56 +253,62 @@ def train_variant(config: SimpleNamespace, variant: Variant, device: str) -> dic
             final_model_path=final_model_path.with_suffix(".zip"),
             best_model_path=best_model_path,
             eval_log_path=eval_log_path,
-            tensorboard_log=variant_tensorboard_log / f"{tb_run_name}_1",
+            tensorboard_log=tensorboard_run_dir,
             raw_obs_dim=raw_obs_dim,
             action_dim=action_dim,
         )
         summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
         return summary
-    finally:
-        train_env.close()
-        eval_env.close()
 
 
-def run_experiment(config: SimpleNamespace) -> Path:
+def ensure_fresh_run_paths(config: ExperimentConfig) -> None:
+    for label, path in (
+        ("output directory", config.output_dir),
+        ("TensorBoard directory", config.tensorboard_log),
+    ):
+        if path.exists() and (not path.is_dir() or any(path.iterdir())):
+            raise FileExistsError(
+                f"Refusing to overwrite a non-empty {label}: {path}. "
+                "Set a unique output.run_tag in the YAML config."
+            )
+
+
+def run_experiment(config: ExperimentConfig) -> Path:
+    ensure_fresh_run_paths(config)
     device = configure_torch(config.device, config.allow_cpu)
     set_random_seed(config.seed)
     config.output_dir.mkdir(parents=True, exist_ok=True)
     config.tensorboard_log.mkdir(parents=True, exist_ok=True)
 
     summaries = [train_variant(config, variant, device) for variant in config.variants]
-    compare_summary = {
-        "env_id": ENV_ID,
-        "algorithm": "SAC",
-        "algorithm_source": "stable-baselines3==2.7.0",
+    experiment_summary = {
+        "config": str(config.config_path),
+        "env_id": config.env_id,
+        "algorithm": config.algorithm,
         "seed": config.seed,
         "timesteps": config.timesteps,
         "frame_stack": config.frame_stack,
-        "config": str(config.config_path),
         "variants": summaries,
     }
     if len(config.variants) == 1:
-        compare_summary_path = config.output_dir / f"compare_summary_{config.variants[0]}.json"
+        summary_path = config.output_dir / f"experiment_summary_{config.variants[0]}.json"
     else:
-        compare_summary_path = config.output_dir / "compare_summary.json"
-    compare_summary_path.write_text(json.dumps(compare_summary, indent=2), encoding="utf-8")
+        summary_path = config.output_dir / "experiment_summary.json"
+    summary_path.write_text(json.dumps(experiment_summary, indent=2), encoding="utf-8")
 
-    print("\n=== Comparison complete ===")
-    print(f"Summary: {compare_summary_path}")
+    print("\n=== Experiment complete ===")
+    print(f"Summary: {summary_path}")
     for summary in summaries:
         print(
             f"{summary['variant']}: final={summary['after_training']['mean_reward']:.2f}, "
             f"best_eval={summary['best_eval_mean_reward']}"
         )
-    return compare_summary_path
+    return summary_path
 
 
-def main() -> None:
-    args = parse_args()
-    config = load_config(args.config)
-    config.config_path = args.config
-    run_experiment(config)
-
-
-if __name__ == "__main__":
-    main()
+def main(
+    argv: Sequence[str] | None = None,
+    default_config_path: Path = DEFAULT_CONFIG_PATH,
+) -> None:
+    args = parse_args(argv, default_config_path)
+    run_experiment(load_config(args.config))

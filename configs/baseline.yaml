@@ -1,30 +1,29 @@
-# Short CPU plumbing check. Rewards from this run are not research results.
+# Single-frame MLP baseline using the same unified training workflow.
 
 experiment:
   environment: LunarLanderContinuous-v3
   algorithm: SAC
   policy: MlpPolicy
   variants:
-    - ltc_residual
-    - ltc_residual_action
+    - mlp
 
 environment:
-  frame_stack: 4
+  frame_stack: 1
 
 training:
-  timesteps: 2000
+  timesteps: 500000
   seed: 42
-  device: auto
-  allow_cpu: true
+  device: cuda
+  allow_cpu: false
   progress_bar: true
 
 evaluation:
-  episodes: 2
-  frequency: 1000
+  episodes: 10
+  frequency: 10000
 
 output:
-  directory: outputs/lunarlander_smoke
-  tensorboard_log: runs/lunarlander_smoke
+  directory: outputs/lunarlander_baseline
+  tensorboard_log: runs/lunarlander_baseline
   run_tag: null
 
 sac:

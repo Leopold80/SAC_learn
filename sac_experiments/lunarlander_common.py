@@ -100,17 +100,20 @@ def configure_torch(device: str, allow_cpu: bool) -> str:
 
     if requested_cuda and not cuda_available:
         if allow_cpu:
-            print("CUDA is not available; falling back to CPU because --allow-cpu was set.")
+            print(
+                "CUDA is not available; falling back to CPU because "
+                "training.allow_cpu is enabled in the YAML config."
+            )
             return "cpu"
         raise RuntimeError(
             "CUDA was requested, but PyTorch cannot see a GPU in this session. "
-            "Run outside the Codex sandbox or pass --allow-cpu for a short debug run only."
+            "Run outside the Codex sandbox or set training.allow_cpu: true in a debug config."
         )
 
     if device == "auto" and not cuda_available and not allow_cpu:
         raise RuntimeError(
             "No CUDA device is available and CPU fallback is disabled. Use a GPU-enabled "
-            "session, or pass --allow-cpu for a debug run."
+            "session, or set training.allow_cpu: true in a debug config."
         )
 
     if cuda_available:

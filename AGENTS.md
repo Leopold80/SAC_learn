@@ -5,11 +5,10 @@
 This repository contains Stable-Baselines3 SAC + LTC experiments for
 `LunarLanderContinuous-v3` only.
 
-- `sac_sb3_lunarlander_demo.py`: thin entrypoint for the standalone, non-stacked LunarLander baseline.
-- `sac_lunarlander_ltc_compare.py`: thin entrypoint for YAML-driven LunarLander comparisons.
+- `main.py`: the only training entrypoint; all experiment choices come from YAML.
 - `render_sac_lunarlander_gif.py`: renders a trained LunarLander policy.
-- `configs/`: YAML experiment configs, including full and smoke LunarLander comparison runs.
-- `sac_experiments/`: baseline / comparison workflows, environment helpers, variants, and LTC feature extractors.
+- `configs/`: full comparison, single-frame baseline, and smoke YAML configs.
+- `sac_experiments/`: config validation, unified training, environment helpers, variants, and LTC feature extractors.
 - `requirements-sac-demo.txt`: Python dependencies for the isolated demo environment.
 - `docs/`: architecture, research roadmap, Windows migration guide, and SAC implementation notes.
 - `outputs/`, `runs/`, and `training_logs/`: generated artifacts, TensorBoard logs, checkpoints, summaries, and process logs.
@@ -27,11 +26,10 @@ Syntax check scripts:
 
 ```bash
 conda run -n sac_sb3_demo python -m py_compile \
-  sac_sb3_lunarlander_demo.py \
-  sac_lunarlander_ltc_compare.py \
+  main.py \
   render_sac_lunarlander_gif.py \
-  sac_experiments/lunarlander_baseline.py \
-  sac_experiments/lunarlander_compare.py \
+  sac_experiments/config.py \
+  sac_experiments/training.py \
   sac_experiments/lunarlander_common.py \
   sac_experiments/variants.py \
   sac_experiments/ltc_features.py
@@ -40,8 +38,8 @@ conda run -n sac_sb3_demo python -m py_compile \
 Run examples:
 
 ```bash
-conda run -n sac_sb3_demo python sac_sb3_lunarlander_demo.py
-conda run -n sac_sb3_demo python sac_lunarlander_ltc_compare.py
+conda run -n sac_sb3_demo python main.py
+conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 ```
 
 For GPU training from this agent environment, use elevated execution because the sandbox may hide CUDA.
@@ -55,7 +53,7 @@ Use Python 3.12-compatible code, 4-space indentation, type hints where helpful, 
 There is no formal test suite yet. Validate changes with `py_compile` and a short smoke run before long training:
 
 ```bash
-conda run -n sac_sb3_demo python sac_lunarlander_ltc_compare.py --config configs/smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 ```
 
 Do not treat smoke-run rewards as research results.
