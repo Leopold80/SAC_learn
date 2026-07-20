@@ -7,10 +7,10 @@ This repository contains Stable-Baselines3 SAC + LTC experiments for
 
 - `main.py`: the only training entrypoint; all experiment choices come from YAML.
 - `render_sac_lunarlander_gif.py`: renders a trained LunarLander policy.
-- `configs/`: full comparison, single-frame baseline, and smoke YAML configs.
+- `configs/`: full comparison, single-frame baseline, parallel-environment, and smoke YAML configs.
 - `sac_experiments/`: config validation, unified training, environment helpers, variants, and LTC feature extractors.
 - `requirements-sac-demo.txt`: Python dependencies for the isolated demo environment.
-- `docs/`: architecture, research roadmap, Windows migration guide, and SAC implementation notes.
+- `docs/`: architecture, parallel SAC design, research roadmap, Windows migration guide, and SAC implementation notes.
 - `outputs/`, `runs/`, and `training_logs/`: generated artifacts, TensorBoard logs, checkpoints, summaries, and process logs.
 
 ## Build, Test, and Development Commands
@@ -40,9 +40,10 @@ Run examples:
 ```bash
 conda run -n sac_sb3_demo python main.py
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
 ```
 
-For GPU training from this agent environment, use elevated execution because the sandbox may hide CUDA.
+For GPU training from this agent environment, use elevated execution because the sandbox may hide CUDA. Also use elevated execution for `SubprocVecEnv` runs when the macOS sandbox blocks multiprocessing with `PermissionError: Operation not permitted`.
 
 ## Coding Style & Naming Conventions
 
@@ -50,13 +51,16 @@ Use Python 3.12-compatible code, 4-space indentation, type hints where helpful, 
 
 ## Testing Guidelines
 
-There is no formal test suite yet. Validate changes with `py_compile` and a short smoke run before long training:
+There is no formal test suite yet. Validate changes with `py_compile` and the relevant short smoke run before long training:
 
 ```bash
 conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/parallel_smoke.yaml
 ```
 
-Do not treat smoke-run rewards as research results.
+Run `parallel_smoke.yaml` when changing `n_envs`, worker construction, callback frequencies, seeding, or environment cleanup. Do not treat smoke-run rewards as research results.
+
+`evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. For the formal four-environment baseline, `train_freq: 1` and `gradient_steps: 4` preserve an approximately 1:1 gradient-update/transition ratio.
 
 ## Commit & Pull Request Guidelines
 
@@ -64,4 +68,4 @@ Use concise imperative commit messages, for example `Refactor LunarLander experi
 
 ## Security & Configuration Tips
 
-Keep `cybernetic_env` clean. Install new dependencies only in `sac_sb3_demo`. Avoid committing large generated files from `outputs/`, `runs/`, or `training_logs/` unless the artifact is explicitly needed for review.
+Keep `cybernetic_env` clean. Install new dependencies only in `sac_sb3_demo`. Give every concurrent or repeated run a unique `output.run_tag`; the launcher intentionally refuses to reuse non-empty output or TensorBoard directories. Avoid committing large generated files from `outputs/`, `runs/`, or `training_logs/` unless the artifact is explicitly needed for review.
