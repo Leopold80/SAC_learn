@@ -1,4 +1,4 @@
-# Four-process sampling experiment for the single-frame MLP baseline.
+# Eight-process sampling experiment for the single-frame MLP baseline.
 
 experiment:
   environment: LunarLanderContinuous-v3
@@ -9,7 +9,9 @@ experiment:
 
 environment:
   frame_stack: 1
-  n_envs: 4
+  # Eight workers increase sample diversity while limiting IPC and the burst of
+  # sequential learner updates compared with copying PPO's 16-worker setup.
+  n_envs: 8
 
 training:
   timesteps: 500000
@@ -37,9 +39,9 @@ sac:
   gamma: 0.99
   tau: 0.01
   train_freq: 1
-  # One VecEnv step collects four transitions. Four updates preserve the
-  # baseline's approximate 1:1 gradient-update/transition ratio.
-  gradient_steps: 4
+  # One VecEnv step collects eight transitions. Eight updates preserve the
+  # single-environment baseline's approximate 1:1 update-to-data ratio.
+  gradient_steps: 8
   learning_starts: 10000
 
 ltc:

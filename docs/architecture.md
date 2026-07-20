@@ -60,13 +60,13 @@ single-segment `output.run_tag` for every additional run.
 same code as the stacked comparison, so there is no second baseline training
 loop to drift out of sync.
 
-`configs/parallel_baseline.yaml` uses four subprocess training environments.
+`configs/parallel_baseline.yaml` uses eight subprocess training environments.
 Worker seeds are `training.seed + worker_index`. Evaluation remains a separate
 single environment using `training.seed + n_envs`, and evaluation/checkpoint
 frequencies continue to mean total collected transitions rather than
 vector-environment calls. Because each
-four-environment step collects four transitions, this config also sets
-`gradient_steps: 4` to preserve the single-environment baseline's approximate
+eight-environment step collects eight transitions, this config also sets
+`gradient_steps: 8` to preserve the single-environment baseline's approximate
 gradient-update/transition ratio.
 
 For the precise VecEnv step semantics, replay-buffer layout, callback-frequency

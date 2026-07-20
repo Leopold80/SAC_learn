@@ -62,7 +62,7 @@ conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_smoke.yam
 
 Run `parallel_smoke.yaml` when changing the SAC vector path and `ppo_parallel_smoke.yaml` when changing PPO rollout, minibatch, model dispatch, worker construction, callback frequencies, seeding, or environment cleanup. Do not treat smoke-run rewards as research results.
 
-`evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. For the formal four-environment baseline, `train_freq: 1` and `gradient_steps: 4` preserve an approximately 1:1 gradient-update/transition ratio.
+`evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. The formal SAC baseline uses eight environments with `train_freq: 1` and `gradient_steps: 8`, preserving an approximately 1:1 gradient-update/transition ratio without copying PPO's more aggressive 16-worker rollout setup.
 
 For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. The formal PPO baseline follows the SB3 2.7 RL-Zoo LunarLanderContinuous recipe with 16 environments, 1,024 steps per worker, batch size 64, four epochs, and CPU execution. Treat it as a strong baseline, not a guarantee that 16 processes maximize wall-clock throughput on every machine.
 

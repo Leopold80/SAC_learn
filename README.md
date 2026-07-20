@@ -114,15 +114,17 @@ conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 ```
 
-四进程并行采样 baseline：
+八进程并行采样 baseline：
 
 ```bash
 conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
 ```
 
 并行配置使用 `SubprocVecEnv`，每个 worker 使用不同 seed；评估仍是独立单环境。
-`evaluation.frequency` 继续表示总 transition 数。四环境配置同步把
-`gradient_steps` 设为 4，以维持单环境 baseline 约 1:1 的更新/样本比例。
+`evaluation.frequency` 继续表示总 transition 数。八环境配置同步把
+`gradient_steps` 设为 8，以维持单环境 baseline 约 1:1 的更新/样本比例。这里选择
+8 个 worker 作为采样多样性、进程通信和 learner 计算之间的折中；没有照搬 PPO 的
+16 环境，因为 SAC 还需要在每轮采样后串行完成对应数量的 actor/双 critic 更新。
 
 十六进程 PPO 强基线：
 
