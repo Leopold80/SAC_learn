@@ -64,7 +64,7 @@ Run `parallel_smoke.yaml` when changing the SAC vector path and `ppo_parallel_sm
 
 `evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. The formal SAC baseline uses eight environments with `train_freq: 1` and `gradient_steps: 8`, preserving an approximately 1:1 gradient-update/transition ratio without copying PPO's more aggressive 16-worker rollout setup.
 
-For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. The formal PPO baseline follows the SB3 2.7 RL-Zoo LunarLanderContinuous recipe with 16 environments, 1,024 steps per worker, batch size 64, four epochs, and CPU execution. Treat it as a strong baseline, not a guarantee that 16 processes maximize wall-clock throughput on every machine.
+For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. The formal PPO baseline derives its rollout settings from the SB3 2.7 RL-Zoo LunarLanderContinuous recipe, then uses `[400, 300]` actor/value towers, batch size 256, and mandatory CUDA for the target Ubuntu training machine. The CPU smoke config remains intentionally small. Treat 16 workers as a strong diversity-oriented baseline, not a guarantee of maximum wall-clock throughput.
 
 ## Commit & Pull Request Guidelines
 
