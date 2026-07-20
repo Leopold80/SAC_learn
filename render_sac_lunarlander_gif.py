@@ -1,4 +1,4 @@
-"""Render a trained SAC LunarLanderContinuous-v3 policy to a GIF."""
+"""Render a trained SAC or PPO LunarLanderContinuous-v3 policy to a GIF."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import imageio.v2 as imageio
-from stable_baselines3 import SAC
+from stable_baselines3 import PPO, SAC
 
 # Import custom feature extractors so SB3 can deserialize LTC models.
 from sac_experiments.ltc_features import (
@@ -32,7 +32,13 @@ DEFAULT_FPS = 30
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Render a trained Stable-Baselines3 SAC LunarLanderContinuous-v3 model to GIF."
+        description="Render a trained SB3 SAC or PPO LunarLanderContinuous-v3 model to GIF."
+    )
+    parser.add_argument(
+        "--algorithm",
+        choices=("SAC", "PPO"),
+        default="SAC",
+        help="Algorithm class used to save the model. Default: SAC.",
     )
     parser.add_argument("--model-path", type=Path, default=DEFAULT_MODEL_PATH)
     parser.add_argument("--output-path", type=Path, default=DEFAULT_OUTPUT_PATH)
@@ -61,7 +67,9 @@ def render_policy(args: argparse.Namespace) -> dict[str, Any]:
         raise FileNotFoundError(f"Model not found: {args.model_path}")
 
     args.output_path.parent.mkdir(parents=True, exist_ok=True)
-    model = SAC.load(args.model_path, device=args.device)
+    algorithm = getattr(args, "algorithm", "SAC")
+    model_class = SAC if algorithm == "SAC" else PPO
+    model = model_class.load(args.model_path, device=args.device)
     inferred_frame_stack, inferred_action_history = infer_lunarlander_observation_setup(
         model.observation_space
     )
@@ -111,6 +119,7 @@ def render_policy(args: argparse.Namespace) -> dict[str, Any]:
 
     imageio.mimsave(args.output_path, frames, fps=args.fps)
     result = {
+        "algorithm": algorithm,
         "env_id": ENV_ID,
         "model_path": str(args.model_path),
         "output_path": str(args.output_path),

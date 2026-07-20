@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This repository contains Stable-Baselines3 SAC + LTC experiments for
+This repository contains Stable-Baselines3 SAC/PPO + LTC experiments for
 `LunarLanderContinuous-v3` only.
 
 - `main.py`: the only training entrypoint; all experiment choices come from YAML.
@@ -10,7 +10,7 @@ This repository contains Stable-Baselines3 SAC + LTC experiments for
 - `configs/`: full comparison, single-frame baseline, parallel-environment, and smoke YAML configs.
 - `sac_experiments/`: config validation, unified training, environment helpers, variants, and LTC feature extractors.
 - `requirements-sac-demo.txt`: Python dependencies for the isolated demo environment.
-- `docs/`: architecture, parallel SAC design, research roadmap, Windows migration guide, and SAC implementation notes.
+- `docs/`: architecture, parallel SAC/PPO design, research roadmap, Windows migration guide, and algorithm notes.
 - `outputs/`, `runs/`, and `training_logs/`: generated artifacts, TensorBoard logs, checkpoints, summaries, and process logs.
 
 ## Build, Test, and Development Commands
@@ -41,6 +41,7 @@ Run examples:
 conda run -n sac_sb3_demo python main.py
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
 ```
 
 For GPU training from this agent environment, use elevated execution because the sandbox may hide CUDA. Also use elevated execution for `SubprocVecEnv` runs when the macOS sandbox blocks multiprocessing with `PermissionError: Operation not permitted`.
@@ -56,11 +57,14 @@ There is no formal test suite yet. Validate changes with `py_compile` and the re
 ```bash
 conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 conda run -n sac_sb3_demo python main.py --config configs/parallel_smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_smoke.yaml
 ```
 
-Run `parallel_smoke.yaml` when changing `n_envs`, worker construction, callback frequencies, seeding, or environment cleanup. Do not treat smoke-run rewards as research results.
+Run `parallel_smoke.yaml` when changing the SAC vector path and `ppo_parallel_smoke.yaml` when changing PPO rollout, minibatch, model dispatch, worker construction, callback frequencies, seeding, or environment cleanup. Do not treat smoke-run rewards as research results.
 
 `evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. For the formal four-environment baseline, `train_freq: 1` and `gradient_steps: 4` preserve an approximately 1:1 gradient-update/transition ratio.
+
+For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. The formal PPO baseline follows the SB3 2.7 RL-Zoo LunarLanderContinuous recipe with 16 environments, 1,024 steps per worker, batch size 64, four epochs, and CPU execution. Treat it as a strong baseline, not a guarantee that 16 processes maximize wall-clock throughput on every machine.
 
 ## Commit & Pull Request Guidelines
 

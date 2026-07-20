@@ -1,7 +1,7 @@
 # Code Structure Notes
 
 The repository has one training command and one YAML-driven workflow for all
-LunarLander SAC variants.
+LunarLander SAC and PPO variants.
 
 ## Training Flow
 
@@ -16,6 +16,7 @@ Choose another experiment only by changing the config path:
 ```bash
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
 conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 ```
 
@@ -43,9 +44,10 @@ Each config uses the same sections:
 - `evaluation`: deterministic evaluation episode count and frequency.
 - `output`: model directory, TensorBoard directory, and optional run tag.
 - `sac`: learning-rate schedule, policy network, and SAC hyperparameters.
+- `ppo`: learning-rate schedule, policy network, rollout, GAE, clipping, and PPO hyperparameters.
 - `ltc`: LTC extractor dimensions and ODE settings.
 
-Only `LunarLanderContinuous-v3`, SAC, and `MlpPolicy` are supported. Keeping
+Only `LunarLanderContinuous-v3`, SAC/PPO, and `MlpPolicy` are supported. Keeping
 these values visible in YAML makes each run self-describing; validation rejects
 unsupported values and unknown keys instead of pretending this is a generic RL
 framework.
@@ -71,6 +73,14 @@ For the precise VecEnv step semantics, replay-buffer layout, callback-frequency
 equations, seed policy, limitations, and comparison protocol, see
 [`parallel_sac_training.md`](parallel_sac_training.md).
 
+`configs/ppo_parallel.yaml` uses the same environment and callback lifecycle but
+switches the model registry to PPO. Sixteen workers each collect 1,024 steps,
+so every rollout contains 16,384 transitions. Configuration validation requires
+the total timesteps to contain an exact number of complete rollouts and requires
+the rollout size to be divisible by the minibatch size. See
+[`parallel_ppo_training.md`](parallel_ppo_training.md) for the parameter basis,
+rollout equations, and machine-dependent throughput caveat.
+
 ## Main Modules
 
 - `sac_experiments/config.py`: grouped YAML schema and validation.
@@ -86,11 +96,12 @@ separate from the training entrypoint without needing a second config parser.
 ## Reading Order
 
 1. `configs/lunarlander.yaml`
-2. `main.py`
-3. `sac_experiments/config.py`
-4. `sac_experiments/training.py`
-5. `sac_experiments/variants.py`
-6. `sac_experiments/ltc_features.py`
+2. `configs/ppo_parallel.yaml` when studying PPO
+3. `main.py`
+4. `sac_experiments/config.py`
+5. `sac_experiments/training.py`
+6. `sac_experiments/variants.py`
+7. `sac_experiments/ltc_features.py`
 
 This mirrors the actual lifecycle: describe the experiment, validate it, train
 the selected variants, and inspect the feature implementation only when needed.

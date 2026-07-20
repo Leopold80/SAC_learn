@@ -101,6 +101,12 @@ Smoke test:
 python main.py --config configs/smoke.yaml
 ```
 
+PPO multi-environment smoke test:
+
+```powershell
+python main.py --config configs/ppo_parallel_smoke.yaml
+```
+
 Full sequential run:
 
 ```powershell
@@ -113,8 +119,15 @@ Single-frame baseline:
 python main.py --config configs/baseline.yaml
 ```
 
-The configured variants run sequentially. Parallel environment sampling remains
-a roadmap item. If separate one-variant processes are launched manually, give
+Parallel SAC and PPO baselines:
+
+```powershell
+python main.py --config configs/parallel_baseline.yaml
+python main.py --config configs/ppo_parallel.yaml
+```
+
+The configured variants run sequentially, while each configured VecEnv may use
+multiple worker processes. If separate one-variant processes are launched manually, give
 each YAML file a unique `output.run_tag` so models and TensorBoard logs cannot
 overwrite each other. The runner also refuses to start when either resolved run
 directory already contains files.
@@ -154,6 +167,9 @@ python render_sac_lunarlander_gif.py `
   --model-path outputs/lunarlander/<run_tag>/mlp/best_model/best_model.zip `
   --output-path outputs/lunarlander/<run_tag>/visualizations/mlp_best.gif
 ```
+
+For a PPO model, add `--algorithm PPO` so the renderer selects the correct SB3
+model class.
 
 Action-history models are inferred automatically from their saved observation space:
 

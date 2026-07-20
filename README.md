@@ -1,6 +1,6 @@
-# LunarLander SAC + LTC 控制实验记录
+# LunarLander SAC / PPO + LTC 控制实验记录
 
-这个仓库用于验证 Stable-Baselines3 SAC 在 `LunarLanderContinuous-v3` 上的训练流程，并进一步探索把 LTC（Liquid Time-constant）时序特征引入 SAC policy / critic 的效果。为保持实验边界清晰，仓库只保留 LunarLander 环境。
+这个仓库用于验证 Stable-Baselines3 SAC 与多环境 PPO 在 `LunarLanderContinuous-v3` 上的训练流程，并进一步探索把 LTC（Liquid Time-constant）时序特征引入 policy / value 模型的效果。为保持实验边界清晰，仓库只保留 LunarLander 环境。
 
 ## 代码入口与文档
 
@@ -11,6 +11,7 @@
 | `configs/` | 正式、单帧 baseline、并行采样与 smoke YAML 配置。 |
 | [`docs/architecture.md`](docs/architecture.md) | 模块职责、配置契约与推荐阅读路径。 |
 | [`docs/parallel_sac_training.md`](docs/parallel_sac_training.md) | 并行采样架构、LaTeX 计数公式、replay buffer、seed、callback 与公平对比协议。 |
+| [`docs/parallel_ppo_training.md`](docs/parallel_ppo_training.md) | 多环境 PPO 强基线、rollout/minibatch 计数、参数依据与运行边界。 |
 | [`docs/research_roadmap.md`](docs/research_roadmap.md) | LTC 设计说明与研究路线。 |
 | [`docs/sac_implementations.md`](docs/sac_implementations.md) | SAC 框架选型笔记。 |
 | [`docs/windows_migration.md`](docs/windows_migration.md) | Windows 复现实验说明。 |
@@ -123,7 +124,18 @@ conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
 `evaluation.frequency` 继续表示总 transition 数。四环境配置同步把
 `gradient_steps` 设为 4，以维持单环境 baseline 约 1:1 的更新/样本比例。
 
-`main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac` 和 `ltc` 分组。未知字段会直接报错，避免拼写错误被静默忽略。
+十六进程 PPO 强基线：
+
+```bash
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
+```
+
+PPO 配置使用 16 个同步环境，每个 worker 每轮采集 1024 步，形成 16,384 条
+transition 的完整 rollout。`batch_size=64`、`n_epochs=4`、`gamma=0.999` 和
+`gae_lambda=0.98` 来自 SB3 2.7 对应 RL-Zoo 收录的 LunarLanderContinuous 配置。
+MLP PPO 默认使用 CPU；16 环境强调轨迹多样性，不保证在每台机器上都有最高吞吐率。
+
+`main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac`、`ppo` 和 `ltc` 分组。训练器只把当前算法对应的参数传给 SB3。未知字段会直接报错，避免拼写错误被静默忽略。
 
 训练器会按 `experiment.variants` 的顺序训练各组，而不是自行并行。若要并行启动多个单 variant 进程，必须为每个进程设置不同的 `output.run_tag`，避免模型和 TensorBoard 文件互相覆盖。TensorBoard run 名保持扁平：
 
@@ -173,6 +185,13 @@ conda run -n sac_sb3_demo python -c \
 
 ```text
 ('mlp', 'ltc', 'ltc_residual', 'ltc_residual_action')
+```
+
+PPO 多环境 smoke：
+
+```bash
+MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_smoke.yaml
 ```
 
 ### Observation shape 检查
@@ -234,6 +253,15 @@ outputs/lunarlander/[<run_tag>/]<variant>/eval_logs/evaluations.npz
 conda run -n sac_sb3_demo python render_sac_lunarlander_gif.py \
   --model-path outputs/lunarlander/<run_tag>/mlp/best_model/best_model.zip \
   --output-path outputs/lunarlander/<run_tag>/visualizations/mlp_best.gif
+```
+
+PPO 模型需要显式选择加载器：
+
+```bash
+conda run -n sac_sb3_demo python render_sac_lunarlander_gif.py \
+  --algorithm PPO \
+  --model-path outputs/lunarlander_ppo_parallel/<run_tag>/mlp/best_model/best_model.zip \
+  --output-path outputs/lunarlander_ppo_parallel/<run_tag>/visualizations/mlp_best.gif
 ```
 
 动作历史模型同样直接指定模型路径：

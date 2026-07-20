@@ -1,4 +1,4 @@
-"""Unified LunarLander SAC training workflow."""
+"""Unified LunarLander SAC and PPO training workflow."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import stable_baselines3 as sb3
-from stable_baselines3 import SAC
+from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.utils import set_random_seed
 
@@ -39,7 +39,7 @@ def parse_args(
     default_config_path: Path = DEFAULT_CONFIG_PATH,
 ) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Train configured SAC variants on LunarLanderContinuous-v3."
+        description="Train configured SAC or PPO variants on LunarLanderContinuous-v3."
     )
     parser.add_argument(
         "--config",
@@ -101,6 +101,26 @@ def build_variant_summary(
         "initial": config.learning_rate,
         "schedule": config.learning_rate_schedule,
     }
+    algorithm_kwargs = dict(config.sac if config.algorithm == "SAC" else config.ppo)
+    algorithm_metrics: dict[str, Any]
+    if config.algorithm == "SAC":
+        algorithm_metrics = {
+            "gradient_updates_per_transition": (
+                config.sac["gradient_steps"]
+                / (config.sac["train_freq"] * config.n_envs)
+            ),
+        }
+    else:
+        rollout_size = config.n_envs * config.ppo["n_steps"]
+        minibatches_per_epoch = rollout_size // config.ppo["batch_size"]
+        algorithm_metrics = {
+            "rollout_size_transitions": rollout_size,
+            "minibatches_per_epoch": minibatches_per_epoch,
+            "optimizer_steps_per_rollout": (
+                minibatches_per_epoch * config.ppo["n_epochs"]
+            ),
+            "sample_reuse_epochs": config.ppo["n_epochs"],
+        }
     return {
         "config": str(config.config_path),
         "variant": variant,
@@ -119,7 +139,7 @@ def build_variant_summary(
         "raw_obs_dim": raw_obs_dim,
         "action_dim": action_dim,
         "learning_rate": learning_rate,
-        **dict(config.sac),
+        **algorithm_kwargs,
         "policy_kwargs": {
             "net_arch": list(config.policy_net_arch),
             "features_extractor": feature_extractor_name(variant),
@@ -133,10 +153,7 @@ def build_variant_summary(
         "sample_throughput_transitions_per_second": (
             sampled_transitions / training_wall_time_seconds
         ),
-        "gradient_updates_per_transition": (
-            config.sac["gradient_steps"]
-            / (config.sac["train_freq"] * config.n_envs)
-        ),
+        **algorithm_metrics,
         "before_training": {
             "mean_reward": before_eval[0],
             "std_reward": before_eval[1],
@@ -206,11 +223,13 @@ def train_variant(
             if config.learning_rate_schedule == "linear"
             else config.learning_rate
         )
-        model = SAC(
+        model_class = SAC if config.algorithm == "SAC" else PPO
+        algorithm_kwargs = dict(config.sac if config.algorithm == "SAC" else config.ppo)
+        model = model_class(
             config.policy,
             train_env,
             learning_rate=learning_rate,
-            **dict(config.sac),
+            **algorithm_kwargs,
             policy_kwargs=variant_policy_kwargs(config, variant, raw_obs_dim=raw_obs_dim),
             tensorboard_log=str(config.tensorboard_log),
             seed=config.seed,
@@ -239,7 +258,7 @@ def train_variant(
                 CheckpointCallback(
                     save_freq=callback_freq,
                     save_path=str(checkpoint_dir),
-                    name_prefix=f"sac_lunarlander_{variant}",
+                    name_prefix=f"{config.algorithm.lower()}_lunarlander_{variant}",
                     save_replay_buffer=False,
                     save_vecnormalize=False,
                 ),
@@ -259,7 +278,7 @@ def train_variant(
             Path(model.logger.dir) if model.logger.dir else config.tensorboard_log
         )
         model.save(final_model_path)
-        loaded_model = SAC.load(final_model_path, env=eval_env, device=device)
+        loaded_model = model_class.load(final_model_path, env=eval_env, device=device)
         after_eval = evaluate(
             loaded_model,
             eval_env,

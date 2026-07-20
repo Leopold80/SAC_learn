@@ -169,6 +169,16 @@ a_t = π(h_t)
 - [x] `eval_freq` 与 checkpoint 频率统一按总 transition 计，并在 summary 中记录 `n_envs`、VecEnv 类型、内部 callback 频率、wall-clock 和吞吐率。
 - [x] 每个并行 worker 使用 `seed + worker_index`，summary 记录全部 worker seed；评估使用不与 worker 重合的 `seed + n_envs` 单环境。
 
+### 多环境 PPO
+
+当前实现和 rollout 口径详见 [`parallel_ppo_training.md`](parallel_ppo_training.md)。
+
+- [x] 在同一个 YAML 入口和训练生命周期中加入 PPO，不复制环境、评估或保存流程。
+- [x] 加入 16 环境强基线，并严格校验完整 rollout 数和完整 minibatch。
+- [x] summary 记录 rollout size、每 epoch minibatch 数、每轮 optimizer step 和数据复用 epoch 数。
+- [ ] 用多个 seed 验证 RL-Zoo 参数在当前代码和机器上的学习稳定性。
+- [ ] 分别比较 `n_envs=4/8/16` 的 wall-clock、throughput 与最终评估；16 环境强调轨迹多样性，不预设其吞吐一定最高。
+
 ### 贝叶斯超参数搜索
 
 - [ ] 选定轻量的贝叶斯优化工具（例如 Optuna），以 YAML 定义搜索空间、trial 预算、pruner 和输出目录。

@@ -1,4 +1,4 @@
-"""YAML configuration contract for LunarLander SAC experiments."""
+"""YAML configuration contract for LunarLander SAC and PPO experiments."""
 
 from __future__ import annotations
 
@@ -29,13 +29,13 @@ from sac_experiments.variants import DEFAULT_VARIANTS, Variant, canonical_varian
 
 
 DEFAULT_CONFIG_PATH = Path("configs/lunarlander.yaml")
-SUPPORTED_ALGORITHM = "SAC"
+SUPPORTED_ALGORITHMS = ("SAC", "PPO")
 SUPPORTED_POLICY = "MlpPolicy"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "experiment": {
         "environment": ENV_ID,
-        "algorithm": SUPPORTED_ALGORITHM,
+        "algorithm": "SAC",
         "policy": SUPPORTED_POLICY,
         "variants": list(DEFAULT_VARIANTS),
     },
@@ -64,6 +64,25 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "learning_rate_schedule": "linear",
         "policy_net_arch": list(DEFAULT_POLICY_NET_ARCH),
         **SAC_CONFIG,
+    },
+    "ppo": {
+        "learning_rate": 3.0e-4,
+        "learning_rate_schedule": "constant",
+        "policy_net_arch": [64, 64],
+        "n_steps": 1024,
+        "batch_size": 64,
+        "n_epochs": 4,
+        "gamma": 0.999,
+        "gae_lambda": 0.98,
+        "clip_range": 0.2,
+        "clip_range_vf": None,
+        "normalize_advantage": True,
+        "ent_coef": 0.01,
+        "vf_coef": 0.5,
+        "max_grad_norm": 0.5,
+        "use_sde": False,
+        "sde_sample_freq": -1,
+        "target_kl": None,
     },
     "ltc": {
         "liquid_hidden_dim": 128,
@@ -103,6 +122,7 @@ class ExperimentConfig:
     learning_rate_schedule: str
     policy_net_arch: tuple[int, ...]
     sac: Mapping[str, Any]
+    ppo: Mapping[str, Any]
     ltc: Mapping[str, Any]
 
 
@@ -172,6 +192,15 @@ def _positive_float(value: Any, name: str) -> float:
     return result
 
 
+def _non_negative_float(value: Any, name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        raise ValueError(f"{name} must be non-negative, got {value!r}.")
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be finite, got {value!r}.")
+    return result
+
+
 def _entropy_coefficient(value: Any) -> float | str:
     if isinstance(value, str):
         if value == "auto":
@@ -199,6 +228,7 @@ def load_config(path: Path) -> ExperimentConfig:
     evaluation = _section(config, "evaluation")
     output = _section(config, "output")
     sac = _section(config, "sac")
+    ppo = _section(config, "ppo")
     ltc = _section(config, "ltc")
 
     env_id = str(experiment["environment"])
@@ -206,8 +236,10 @@ def load_config(path: Path) -> ExperimentConfig:
     policy = str(experiment["policy"])
     if env_id != ENV_ID:
         raise ValueError(f"Only {ENV_ID} is supported, got {env_id!r}.")
-    if algorithm != SUPPORTED_ALGORITHM:
-        raise ValueError(f"Only {SUPPORTED_ALGORITHM} is supported, got {algorithm!r}.")
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        raise ValueError(
+            f"Only {', '.join(SUPPORTED_ALGORITHMS)} are supported, got {algorithm!r}."
+        )
     if policy != SUPPORTED_POLICY:
         raise ValueError(f"Only {SUPPORTED_POLICY} is supported, got {policy!r}.")
 
@@ -280,18 +312,22 @@ def load_config(path: Path) -> ExperimentConfig:
         output_dir /= run_tag
         tensorboard_log /= run_tag
 
-    learning_rate = _positive_float(sac["learning_rate"], "sac.learning_rate")
-    learning_rate_schedule = str(sac["learning_rate_schedule"])
+    algorithm_name = algorithm.lower()
+    algorithm_section = sac if algorithm == "SAC" else ppo
+    learning_rate = _positive_float(
+        algorithm_section["learning_rate"], f"{algorithm_name}.learning_rate"
+    )
+    learning_rate_schedule = str(algorithm_section["learning_rate_schedule"])
     if learning_rate_schedule not in {"linear", "constant"}:
         raise ValueError(
-            "sac.learning_rate_schedule must be 'linear' or 'constant', got "
+            f"{algorithm_name}.learning_rate_schedule must be 'linear' or 'constant', got "
             f"{learning_rate_schedule!r}."
         )
-    policy_net_arch_value = sac["policy_net_arch"]
+    policy_net_arch_value = algorithm_section["policy_net_arch"]
     if not isinstance(policy_net_arch_value, list) or not policy_net_arch_value:
-        raise ValueError("sac.policy_net_arch must be a non-empty list.")
+        raise ValueError(f"{algorithm_name}.policy_net_arch must be a non-empty list.")
     policy_net_arch = tuple(
-        _positive_int(width, f"sac.policy_net_arch[{index}]")
+        _positive_int(width, f"{algorithm_name}.policy_net_arch[{index}]")
         for index, width in enumerate(policy_net_arch_value)
     )
 
@@ -310,6 +346,52 @@ def load_config(path: Path) -> ExperimentConfig:
         value = _positive_float(sac_kwargs[key], f"sac.{key}")
         if value > 1:
             raise ValueError(f"sac.{key} must be at most 1, got {value}.")
+
+    ppo_kwargs = {
+        key: value
+        for key, value in ppo.items()
+        if key not in {"learning_rate", "learning_rate_schedule", "policy_net_arch"}
+    }
+    for key in ("n_steps", "batch_size", "n_epochs"):
+        ppo_kwargs[key] = _positive_int(ppo_kwargs[key], f"ppo.{key}")
+    rollout_size = n_envs * ppo_kwargs["n_steps"]
+    if rollout_size <= 1:
+        raise ValueError("PPO requires environment.n_envs * ppo.n_steps to exceed 1.")
+    if ppo_kwargs["batch_size"] > rollout_size:
+        raise ValueError("ppo.batch_size must not exceed n_envs * ppo.n_steps.")
+    if rollout_size % ppo_kwargs["batch_size"] != 0:
+        raise ValueError(
+            "environment.n_envs * ppo.n_steps must be divisible by ppo.batch_size "
+            "so every PPO epoch uses full minibatches."
+        )
+    if algorithm == "PPO" and timesteps % rollout_size != 0:
+        raise ValueError(
+            "PPO training.timesteps must be divisible by n_envs * ppo.n_steps so "
+            "SB3 completes an exact number of rollout/update cycles."
+        )
+    for key in ("gamma", "gae_lambda", "clip_range"):
+        value = _positive_float(ppo_kwargs[key], f"ppo.{key}")
+        if value > 1:
+            raise ValueError(f"ppo.{key} must be at most 1, got {value}.")
+        ppo_kwargs[key] = value
+    clip_range_vf = ppo_kwargs["clip_range_vf"]
+    if clip_range_vf is not None:
+        ppo_kwargs["clip_range_vf"] = _positive_float(
+            clip_range_vf, "ppo.clip_range_vf"
+        )
+    for key in ("ent_coef", "vf_coef", "max_grad_norm"):
+        ppo_kwargs[key] = _non_negative_float(ppo_kwargs[key], f"ppo.{key}")
+    for key in ("normalize_advantage", "use_sde"):
+        if not isinstance(ppo_kwargs[key], bool):
+            raise ValueError(f"ppo.{key} must be a boolean.")
+    sde_sample_freq = ppo_kwargs["sde_sample_freq"]
+    if isinstance(sde_sample_freq, bool) or not isinstance(sde_sample_freq, int):
+        raise ValueError("ppo.sde_sample_freq must be an integer.")
+    if sde_sample_freq < -1:
+        raise ValueError("ppo.sde_sample_freq must be -1 or a non-negative integer.")
+    target_kl = ppo_kwargs["target_kl"]
+    if target_kl is not None:
+        ppo_kwargs["target_kl"] = _positive_float(target_kl, "ppo.target_kl")
 
     for key in ("liquid_hidden_dim", "features_dim", "raw_features_dim", "fusion_hidden_dim", "ode_unfolds"):
         _positive_int(ltc[key], f"ltc.{key}")
@@ -338,5 +420,6 @@ def load_config(path: Path) -> ExperimentConfig:
         learning_rate_schedule=learning_rate_schedule,
         policy_net_arch=policy_net_arch,
         sac=MappingProxyType(sac_kwargs),
+        ppo=MappingProxyType(ppo_kwargs),
         ltc=MappingProxyType(dict(ltc)),
     )

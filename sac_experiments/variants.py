@@ -1,4 +1,4 @@
-"""Variant registry for LunarLander SAC comparison experiments."""
+"""Variant registry shared by LunarLander SAC and PPO experiments."""
 
 from __future__ import annotations
 

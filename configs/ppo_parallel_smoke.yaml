@@ -1,0 +1,47 @@
+# Short CPU plumbing check for the multi-environment PPO path.
+
+experiment:
+  environment: LunarLanderContinuous-v3
+  algorithm: PPO
+  policy: MlpPolicy
+  variants:
+    - mlp
+
+environment:
+  frame_stack: 1
+  n_envs: 2
+
+training:
+  timesteps: 128
+  seed: 42
+  device: cpu
+  allow_cpu: true
+  progress_bar: false
+
+evaluation:
+  episodes: 1
+  frequency: 64
+
+output:
+  directory: outputs/lunarlander_ppo_parallel_smoke
+  tensorboard_log: runs/lunarlander_ppo_parallel_smoke
+  run_tag: null
+
+ppo:
+  learning_rate: 0.0003
+  learning_rate_schedule: constant
+  policy_net_arch: [32, 32]
+  n_steps: 32
+  batch_size: 64
+  n_epochs: 1
+  gamma: 0.999
+  gae_lambda: 0.98
+  clip_range: 0.2
+  clip_range_vf: null
+  normalize_advantage: true
+  ent_coef: 0.01
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  use_sde: false
+  sde_sample_freq: -1
+  target_kl: null
