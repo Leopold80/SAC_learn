@@ -14,7 +14,7 @@ variant 注册表、评估回调和输出目录约定。差异只保留在算法
 
 ## 2. 为什么选择 16 个环境
 
-正式配置的 rollout/GAE 参数以 Stable-Baselines3 2.7 对应的
+CPU 强基线以 Stable-Baselines3 2.7 对应的
 [RL Baselines3 Zoo PPO 配置](https://github.com/DLR-RM/rl-baselines3-zoo/blob/v2.7.0/hyperparams/ppo.yml)
 为强基线。它为 `LunarLanderContinuous-v3` 使用 16 个并行环境，并采用：
 
@@ -22,9 +22,9 @@ variant 注册表、评估回调和输出目录约定。差异只保留在算法
 ppo:
   learning_rate: 0.0003
   learning_rate_schedule: constant
-  policy_net_arch: [400, 300]
+  policy_net_arch: [64, 64]
   n_steps: 1024
-  batch_size: 256
+  batch_size: 64
   n_epochs: 4
   gamma: 0.999
   gae_lambda: 0.98
@@ -32,19 +32,17 @@ ppo:
   ent_coef: 0.01
 ```
 
-RL-Zoo 原条目提供的是 16 环境、`n_steps=1024`、`batch_size=64`、4 epochs、
-`gamma=0.999`、`gae_lambda=0.98` 和 `ent_coef=0.01`。本项目正式训练部署在 CUDA
-Ubuntu，因此保留它的 rollout 与 GAE 设计，但把 actor/value 网络从默认 `[64,64]`
-扩大到 `[400,300]`，并把 minibatch 扩大到 256。这样每次更新具有更高算术密度，CUDA
-不再只服务一个不足一万参数的小网络。
+这组参数优先给 PPO 提供大量同时采集、彼此独立的轨迹，并使用长时域折扣和 GAE 来处理
+着陆任务。它是一个有依据的起点，不是对所有机器或所有随机种子的全局最优保证。若目标
+变成纯 wall-clock 吞吐，应另行比较 `n_envs=4/8/16`；不能预设进程越多一定越快。
 
-这是一套面向目标硬件的工程配置，不再是 RL-Zoo recipe 的原样复现。16 个环境优先提供
-同时采集、彼此独立的轨迹；若目标变成纯 wall-clock 吞吐，仍应比较
-`n_envs=4/8/16`，不能预设进程越多一定越快。
+SB3 对小型 MLP PPO 会优先建议 CPU，因为小型 actor/value 网络通常无法有效利用 GPU，
+环境采样和进程通信反而是主要成本。因此 `ppo_parallel.yaml` 使用 `device: cpu`。
 
-正式配置使用 `device: cuda` 和 `allow_cpu: false`，CUDA 不可用时直接失败。环境 worker
-仍在 CPU 子进程中运行，GPU 负责 policy/value 前向与 PPO minibatch 更新。CPU smoke
-配置继续使用 `[32,32]`，只验证管线，不代表正式模型规模。
+另设 [`configs/ppo_parallel_large.yaml`](../configs/ppo_parallel_large.yaml) 作为 CUDA
+容量对照。它保留相同的16环境、rollout、GAE和epoch设置，只把独立actor/value towers
+扩大到 `[400,300]`，并把 `batch_size` 扩大到256。该配置使用 `device: cuda` 和
+`allow_cpu: false`，CUDA不可用时直接失败；它不是RL-Zoo recipe的原样复现。
 
 ## 3. Rollout 与更新计数
 
@@ -67,17 +65,21 @@ $$
 M = \frac{R}{B}, \qquad U = E\frac{R}{B}
 $$
 
-正式配置中：
+CPU 强基线中：
 
 ```text
 n = 16
 T = 1024
 R = 16384 transitions
-B = 256
-M = 64 minibatches / epoch
+B = 64
+M = 256 minibatches / epoch
 E = 4
-U = 256 optimizer steps / rollout
+U = 1024 optimizer steps / rollout
 ```
+
+CUDA 大网络对照使用 $B=256$，因此每个 epoch 有64个minibatch，每轮rollout执行
+256次optimizer step。两组数据都会复用4个epochs，但optimizer step数量不同，结果不能
+只按网络容量解释。
 
 每条 rollout 数据会被复用 4 个 epoch，但训练期间不会像 SAC 一样混入更早的 replay
 buffer 数据。
@@ -147,5 +149,5 @@ summary 额外记录：
 
 - 不加入 `VecNormalize`：RL-Zoo 的这个条目未要求 normalization，先避免额外变量；
 - 不启用 gSDE：保持该条目和 SB3 PPO 默认探索形式；
-- 不保留 `[64,64]` 小网络：目标是 CUDA 正式训练，改用 `[400,300]` actor/value towers；
-- 不允许静默 CPU fallback：正式运行必须明确看到 CUDA，smoke 才使用 CPU。
+- CPU 强基线保留 `[64,64]`；CUDA 大网络作为独立配置，不覆盖算法强基线；
+- CUDA 大网络不允许静默 CPU fallback，CPU strong baseline和smoke则明确使用CPU。

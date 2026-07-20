@@ -42,6 +42,7 @@ conda run -n sac_sb3_demo python main.py
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
 conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_large.yaml
 ```
 
 For GPU training from this agent environment, use elevated execution because the sandbox may hide CUDA. Also use elevated execution for `SubprocVecEnv` runs when the macOS sandbox blocks multiprocessing with `PermissionError: Operation not permitted`.
@@ -64,7 +65,7 @@ Run `parallel_smoke.yaml` when changing the SAC vector path and `ppo_parallel_sm
 
 `evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. The formal SAC baseline uses eight environments with `train_freq: 1` and `gradient_steps: 8`, preserving an approximately 1:1 gradient-update/transition ratio without copying PPO's more aggressive 16-worker rollout setup.
 
-For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. The formal PPO baseline derives its rollout settings from the SB3 2.7 RL-Zoo LunarLanderContinuous recipe, then uses `[400, 300]` actor/value towers, batch size 256, and mandatory CUDA for the target Ubuntu training machine. The CPU smoke config remains intentionally small. Treat 16 workers as a strong diversity-oriented baseline, not a guarantee of maximum wall-clock throughput.
+For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. `ppo_parallel.yaml` follows the SB3 2.7 RL-Zoo LunarLanderContinuous recipe with `[64, 64]`, batch size 64, and CPU execution. `ppo_parallel_large.yaml` is the separate CUDA experiment with `[400, 300]` actor/value towers and batch size 256. Treat 16 workers as a strong diversity-oriented baseline, not a guarantee of maximum wall-clock throughput.
 
 ## Commit & Pull Request Guidelines
 

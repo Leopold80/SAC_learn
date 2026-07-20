@@ -176,7 +176,7 @@ a_t = π(h_t)
 - [x] 在同一个 YAML 入口和训练生命周期中加入 PPO，不复制环境、评估或保存流程。
 - [x] 加入 16 环境强基线，并严格校验完整 rollout 数和完整 minibatch。
 - [x] summary 记录 rollout size、每 epoch minibatch 数、每轮 optimizer step 和数据复用 epoch 数。
-- [ ] 用多个 seed 验证 RL-Zoo rollout 参数加 CUDA 大网络后，在目标机器上的学习稳定性。
+- [ ] 用多个 seed 分别验证 CPU RL-Zoo 强基线与 CUDA 大网络 PPO 的学习稳定性。
 - [ ] 分别比较 `n_envs=4/8/16` 的 wall-clock、throughput 与最终评估；16 环境强调轨迹多样性，不预设其吞吐一定最高。
 
 ### 贝叶斯超参数搜索

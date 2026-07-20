@@ -124,6 +124,7 @@ Parallel SAC and PPO baselines:
 ```powershell
 python main.py --config configs/parallel_baseline.yaml
 python main.py --config configs/ppo_parallel.yaml
+python main.py --config configs/ppo_parallel_large.yaml
 ```
 
 The configured variants run sequentially, while each configured VecEnv may use

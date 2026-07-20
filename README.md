@@ -133,10 +133,19 @@ conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
 ```
 
 PPO 配置使用 16 个同步环境，每个 worker 每轮采集 1024 步，形成 16,384 条
-transition 的完整 rollout。`n_epochs=4`、`gamma=0.999` 和 `gae_lambda=0.98`
-来自 SB3 2.7 对应 RL-Zoo 收录的 LunarLanderContinuous 配置。正式训练面向 CUDA
-Ubuntu：actor/value 网络扩大为 `[400, 300]`，`batch_size=256`，并在 CUDA 不可用时
-直接失败。16 环境强调轨迹多样性，不保证在每台机器上都有最高吞吐率。
+transition 的完整 rollout。`batch_size=64`、`n_epochs=4`、`gamma=0.999` 和
+`gae_lambda=0.98` 来自 SB3 2.7 对应 RL-Zoo 收录的 LunarLanderContinuous 配置。
+MLP PPO 默认使用 CPU；16 环境强调轨迹多样性，不保证在每台机器上都有最高吞吐率。
+
+CUDA 大网络 PPO 对照：
+
+```bash
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_large.yaml
+```
+
+该配置保留相同 rollout/GAE 设置，将独立的 actor/value towers 扩大到 `[400,300]`，
+并使用 `batch_size=256` 和强制 CUDA。它有独立的 outputs/runs 目录，不会与 CPU
+强基线混合。
 
 `main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac`、`ppo` 和 `ltc` 分组。训练器只把当前算法对应的参数传给 SB3。未知字段会直接报错，避免拼写错误被静默忽略。
 

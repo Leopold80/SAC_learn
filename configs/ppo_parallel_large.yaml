@@ -1,4 +1,4 @@
-# Multi-environment PPO strong baseline based on the SB3 RL-Zoo 2.7 recipe.
+# CUDA-oriented large-network PPO experiment derived from ppo_parallel.yaml.
 
 experiment:
   environment: LunarLanderContinuous-v3
@@ -9,16 +9,14 @@ experiment:
 
 environment:
   frame_stack: 1
-  # The RL-Zoo recipe uses 16 environments to maximize rollout diversity.
   n_envs: 16
 
 training:
   # Exactly 64 complete rollouts: 64 * 16 envs * 1024 steps.
   timesteps: 1048576
   seed: 42
-  # SB3 recommends CPU for PPO with an MLP policy.
-  device: cpu
-  allow_cpu: true
+  device: cuda
+  allow_cpu: false
   progress_bar: true
 
 evaluation:
@@ -26,16 +24,17 @@ evaluation:
   frequency: 32768
 
 output:
-  directory: outputs/lunarlander_ppo_parallel
-  tensorboard_log: runs/lunarlander_ppo_parallel
+  directory: outputs/lunarlander_ppo_parallel_large
+  tensorboard_log: runs/lunarlander_ppo_parallel_large
   run_tag: null
 
 ppo:
   learning_rate: 0.0003
   learning_rate_schedule: constant
-  policy_net_arch: [64, 64]
+  # Larger actor/value towers and minibatches make CUDA materially useful.
+  policy_net_arch: [400, 300]
   n_steps: 1024
-  batch_size: 64
+  batch_size: 256
   n_epochs: 4
   gamma: 0.999
   gae_lambda: 0.98

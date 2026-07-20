@@ -17,6 +17,7 @@ Choose another experiment only by changing the config path:
 conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
 conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
 conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_large.yaml
 conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
 ```
 
@@ -80,6 +81,11 @@ the total timesteps to contain an exact number of complete rollouts and requires
 the rollout size to be divisible by the minibatch size. See
 [`parallel_ppo_training.md`](parallel_ppo_training.md) for the parameter basis,
 rollout equations, and machine-dependent throughput caveat.
+
+`configs/ppo_parallel_large.yaml` keeps the same rollout design but uses separate
+`[400, 300]` actor/value towers, batch size 256, mandatory CUDA, and distinct
+output/TensorBoard roots. It is a capacity-and-hardware experiment, while
+`ppo_parallel.yaml` remains the CPU RL-Zoo-style strong baseline.
 
 ## Main Modules
 
