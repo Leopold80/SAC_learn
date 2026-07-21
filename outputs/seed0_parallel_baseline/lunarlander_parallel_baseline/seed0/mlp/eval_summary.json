@@ -1,0 +1,66 @@
+{
+  "config": "/home/leopold/sac_learn/configs/parallel_baseline.yaml",
+  "variant": "mlp",
+  "env_id": "LunarLanderContinuous-v3",
+  "algorithm": "SAC",
+  "algorithm_source": "stable-baselines3==2.7.0",
+  "policy": "MlpPolicy",
+  "seed": 0,
+  "timesteps": 500000,
+  "frame_stack": 1,
+  "n_envs": 8,
+  "vec_env": "SubprocVecEnv",
+  "worker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "eval_seed": 8,
+  "uses_action_history": false,
+  "raw_obs_dim": 8,
+  "action_dim": 2,
+  "learning_rate": {
+    "initial": 0.00073,
+    "schedule": "linear"
+  },
+  "buffer_size": 1000000,
+  "batch_size": 256,
+  "ent_coef": "auto",
+  "gamma": 0.99,
+  "tau": 0.01,
+  "train_freq": 1,
+  "gradient_steps": 8,
+  "learning_starts": 10000,
+  "policy_kwargs": {
+    "net_arch": [
+      400,
+      300
+    ],
+    "features_extractor": "FlattenExtractor"
+  },
+  "ltc": null,
+  "eval_episodes": 10,
+  "eval_freq": 10000,
+  "callback_freq_vec_steps": 1250,
+  "training_wall_time_seconds": 2328.0270315729995,
+  "sampled_transitions": 500000,
+  "sample_throughput_transitions_per_second": 214.77413845240466,
+  "gradient_updates_per_transition": 1.0,
+  "before_training": {
+    "mean_reward": -289.96220850000003,
+    "std_reward": 113.77588003848895
+  },
+  "after_training": {
+    "mean_reward": 274.5876428,
+    "std_reward": 10.204191800661254
+  },
+  "best_eval_mean_reward": 286.1998409,
+  "final_model_path": "outputs/seed0_parallel_baseline/lunarlander_parallel_baseline/seed0/mlp/final_model.zip",
+  "best_model_path": "outputs/seed0_parallel_baseline/lunarlander_parallel_baseline/seed0/mlp/best_model/best_model.zip",
+  "tensorboard_log": "runs/seed0_parallel_baseline/lunarlander_parallel_baseline/seed0/mlp_1"
+}
