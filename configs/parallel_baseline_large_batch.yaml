@@ -1,0 +1,55 @@
+# Eight-process sampling experiment for the single-frame MLP baseline.
+
+experiment:
+  environment: LunarLanderContinuous-v3
+  algorithm: SAC
+  policy: MlpPolicy
+  variants:
+    - mlp
+
+environment:
+  frame_stack: 1
+  # Eight workers increase sample diversity while limiting IPC and the burst of
+  # sequential learner updates compared with copying PPO's 16-worker setup.
+  n_envs: 8
+
+training:
+  timesteps: 500000
+  seed: 42
+  device: cuda
+  allow_cpu: false
+  progress_bar: true
+
+evaluation:
+  episodes: 10
+  frequency: 10000
+
+output:
+  directory: outputs/lunarlander_parallel_large_batch
+  tensorboard_log: runs/lunarlander_parallel_large_batch
+  run_tag: exp2_parallel_sac
+
+sac:
+  learning_rate: 0.00073
+  learning_rate_schedule: linear
+  policy_net_arch: [400, 300]
+  buffer_size: 1000000
+  batch_size: 2048
+  ent_coef: auto
+  gamma: 0.99
+  tau: 0.01
+  train_freq: 1
+  # One VecEnv step collects eight transitions. Eight updates preserve the
+  # single-environment baseline's approximate 1:1 update-to-data ratio.
+  gradient_steps: 1
+  learning_starts: 10000
+
+ltc:
+  liquid_hidden_dim: 128
+  features_dim: 256
+  raw_features_dim: 128
+  fusion_hidden_dim: 256
+  dt: 1.0
+  tau_min: 0.1
+  ode_unfolds: 4
+  reversal_init_scale: 1.0

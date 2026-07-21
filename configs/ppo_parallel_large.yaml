@@ -26,7 +26,7 @@ evaluation:
 output:
   directory: outputs/lunarlander_ppo_parallel_large
   tensorboard_log: runs/lunarlander_ppo_parallel_large
-  run_tag: null
+  run_tag: exp4_parallel_ppo_large
 
 ppo:
   learning_rate: 0.0003
