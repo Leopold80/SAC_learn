@@ -25,7 +25,13 @@ from sac_experiments.lunarlander_common import (
     ENV_ID,
     SAC_CONFIG,
 )
-from sac_experiments.variants import DEFAULT_VARIANTS, Variant, canonical_variant
+from sac_experiments.variants import (
+    DEFAULT_VARIANTS,
+    Variant,
+    canonical_variant,
+    is_ltc_variant,
+    is_rbf_variant,
+)
 
 
 DEFAULT_CONFIG_PATH = Path("configs/lunarlander.yaml")
@@ -94,6 +100,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "ode_unfolds": 4,
         "reversal_init_scale": 1.0,
     },
+    "rbf": {
+        "small_num_centers": 64,
+        "large_num_centers": 192,
+        "center_init_range": 1.0,
+        "initial_bandwidth": 1.5,
+        "min_bandwidth": 0.05,
+    },
 }
 
 
@@ -124,6 +137,7 @@ class ExperimentConfig:
     sac: Mapping[str, Any]
     ppo: Mapping[str, Any]
     ltc: Mapping[str, Any]
+    rbf: Mapping[str, Any]
 
 
 def load_yaml_file(path: Path) -> dict[str, Any]:
@@ -230,6 +244,7 @@ def load_config(path: Path) -> ExperimentConfig:
     sac = _section(config, "sac")
     ppo = _section(config, "ppo")
     ltc = _section(config, "ltc")
+    rbf = _section(config, "rbf")
 
     env_id = str(experiment["environment"])
     algorithm = str(experiment["algorithm"])
@@ -252,8 +267,15 @@ def load_config(path: Path) -> ExperimentConfig:
 
     frame_stack = _positive_int(environment["frame_stack"], "environment.frame_stack")
     n_envs = _positive_int(environment["n_envs"], "environment.n_envs")
-    if frame_stack == 1 and any(variant != "mlp" for variant in variants):
+    if frame_stack == 1 and any(is_ltc_variant(variant) for variant in variants):
         raise ValueError("LTC variants require environment.frame_stack to be at least 2.")
+    if frame_stack != 1 and any(is_rbf_variant(variant) for variant in variants):
+        raise ValueError(
+            "RBF PPO variants require environment.frame_stack to be exactly 1 so they "
+            "use the same Markov observation as the PPO MLP baseline."
+        )
+    if algorithm != "PPO" and any(is_rbf_variant(variant) for variant in variants):
+        raise ValueError("RBF variants are currently implemented only for PPO.")
     timesteps = _positive_int(training["timesteps"], "training.timesteps")
     if n_envs > timesteps:
         raise ValueError("environment.n_envs must not exceed training.timesteps.")
@@ -398,6 +420,20 @@ def load_config(path: Path) -> ExperimentConfig:
     for key in ("dt", "tau_min", "reversal_init_scale"):
         _positive_float(ltc[key], f"ltc.{key}")
 
+    for key in ("small_num_centers", "large_num_centers"):
+        _positive_int(rbf[key], f"rbf.{key}")
+    if rbf["small_num_centers"] == rbf["large_num_centers"]:
+        raise ValueError(
+            "rbf.small_num_centers and rbf.large_num_centers must be different "
+            "to preserve the two-capacity comparison."
+        )
+    for key in ("center_init_range", "initial_bandwidth", "min_bandwidth"):
+        _positive_float(rbf[key], f"rbf.{key}")
+    if rbf["initial_bandwidth"] <= rbf["min_bandwidth"]:
+        raise ValueError(
+            "rbf.initial_bandwidth must be greater than rbf.min_bandwidth."
+        )
+
     return ExperimentConfig(
         config_path=path,
         env_id=env_id,
@@ -422,4 +458,5 @@ def load_config(path: Path) -> ExperimentConfig:
         sac=MappingProxyType(sac_kwargs),
         ppo=MappingProxyType(ppo_kwargs),
         ltc=MappingProxyType(dict(ltc)),
+        rbf=MappingProxyType(dict(rbf)),
     )

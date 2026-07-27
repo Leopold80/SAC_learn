@@ -16,6 +16,8 @@ from sac_experiments.ltc_features import (
     LTCTemporalFeaturesExtractor,
     ResidualCircuitLTCFeaturesExtractor,
 )
+# Import custom policies so SB3 can deserialize RBF PPO models.
+from sac_experiments.rbf_policies import RBFActorCriticPolicy, RBFActorMLPCriticPolicy
 from sac_experiments.lunarlander_common import (
     ENV_ID,
     infer_lunarlander_observation_setup,

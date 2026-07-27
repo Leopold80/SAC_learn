@@ -151,3 +151,11 @@ summary 额外记录：
 - 不启用 gSDE：保持该条目和 SB3 PPO 默认探索形式；
 - CPU 强基线保留 `[64,64]`；CUDA 大网络作为独立配置，不覆盖算法强基线；
 - CUDA 大网络不允许静默 CPU fallback，CPU strong baseline和smoke则明确使用CPU。
+
+## 8. RBF actor / critic 对照
+
+[`configs/ppo/rbf_comparison.yaml`](../configs/ppo/rbf_comparison.yaml) 复用本文件的 16
+environment、1,024-step rollout、64 rollout 和 1,048,576-transition 预算。它只替换
+actor/value 的函数逼近器，不改变 PPO 更新、seed、callback 或评估语义。RBF 变体固定为单帧
+observation；严格 RBF 组使用 RBF actor 与 RBF value，消融组只把 actor 替换为 RBF 并保留
+`[64,64]` MLP critic。完整结构与多 seed 运行说明见 [`rbf_ppo.md`](rbf_ppo.md)。

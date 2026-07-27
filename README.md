@@ -147,6 +147,27 @@ conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_large.yam
 并使用 `batch_size=256` 和强制 CUDA。它有独立的 outputs/runs 目录，不会与 CPU
 强基线混合。
 
+## RBF PPO 对照
+
+[`configs/ppo/rbf_comparison.yaml`](configs/ppo/rbf_comparison.yaml) 新增五组同预算 PPO
+对照：MLP、完整 RBF actor-critic 的 64/192 基函数，以及 RBF actor + MLP critic 的
+64/192 基函数。它受 RBF 自适应控制的函数逼近思想启发，但仍是 PPO 的函数逼近实验，
+不等价于反步控制律或稳定性证明。结构、公式、初始化和结果解释边界见
+[`docs/rbf_ppo.md`](docs/rbf_ppo.md)。
+
+本机仅作短流程检查：
+
+```bash
+MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
+conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_rbf.yaml
+```
+
+正式多 seed 训练在 macOS 或带 NVIDIA 的 Ubuntu 主机运行：
+
+```bash
+CONDA_ENV=sac_sb3_demo ./run_ppo_rbf_multiseed.sh
+```
+
 `main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac`、`ppo` 和 `ltc` 分组。训练器只把当前算法对应的参数传给 SB3。未知字段会直接报错，避免拼写错误被静默忽略。
 
 训练器会按 `experiment.variants` 的顺序训练各组，而不是自行并行。若要并行启动多个单 variant 进程，必须为每个进程设置不同的 `output.run_tag`，避免模型和 TensorBoard 文件互相覆盖。TensorBoard run 名保持扁平：

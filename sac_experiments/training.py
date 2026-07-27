@@ -28,8 +28,12 @@ from sac_experiments.lunarlander_common import (
 from sac_experiments.variants import (
     Variant,
     feature_extractor_name,
+    is_rbf_variant,
+    rbf_num_centers,
     tensorboard_run_name,
     uses_action_history,
+    variant_network_summary,
+    variant_policy,
     variant_policy_kwargs,
 )
 
@@ -83,6 +87,25 @@ def ltc_config_for_summary(
     return summary
 
 
+def rbf_config_for_summary(
+    config: ExperimentConfig,
+    variant: Variant,
+) -> dict[str, Any] | None:
+    if not is_rbf_variant(variant):
+        return None
+
+    rbf = config.rbf
+    return {
+        "num_centers": rbf_num_centers(config, variant),
+        "center_init_range": rbf["center_init_range"],
+        "initial_bandwidth": rbf["initial_bandwidth"],
+        "min_bandwidth": rbf["min_bandwidth"],
+        "centers": "learnable",
+        "bandwidths": "learnable diagonal per-center widths",
+        "basis": "exp(-0.5 * sum(((x-c)/sigma)^2))",
+    }
+
+
 def build_variant_summary(
     config: ExperimentConfig,
     variant: Variant,
@@ -96,6 +119,8 @@ def build_variant_summary(
     action_dim: int,
     training_wall_time_seconds: float,
     sampled_transitions: int,
+    policy_class: str,
+    trainable_parameter_count: int,
 ) -> dict[str, Any]:
     learning_rate = {
         "initial": config.learning_rate,
@@ -121,6 +146,11 @@ def build_variant_summary(
             ),
             "sample_reuse_epochs": config.ppo["n_epochs"],
         }
+    resolved_policy_kwargs = variant_policy_kwargs(
+        config,
+        variant,
+        raw_obs_dim=raw_obs_dim,
+    )
     return {
         "config": str(config.config_path),
         "variant": variant,
@@ -128,6 +158,7 @@ def build_variant_summary(
         "algorithm": config.algorithm,
         "algorithm_source": f"stable-baselines3=={sb3.__version__}",
         "policy": config.policy,
+        "policy_class": policy_class,
         "seed": config.seed,
         "timesteps": config.timesteps,
         "frame_stack": config.frame_stack,
@@ -141,10 +172,13 @@ def build_variant_summary(
         "learning_rate": learning_rate,
         **algorithm_kwargs,
         "policy_kwargs": {
-            "net_arch": list(config.policy_net_arch),
+            "net_arch": resolved_policy_kwargs["net_arch"],
             "features_extractor": feature_extractor_name(variant),
         },
+        "network": variant_network_summary(config, variant),
+        "trainable_parameter_count": trainable_parameter_count,
         "ltc": ltc_config_for_summary(config, variant),
+        "rbf": rbf_config_for_summary(config, variant),
         "eval_episodes": config.eval_episodes,
         "eval_freq": config.eval_freq,
         "callback_freq_vec_steps": config.eval_freq // config.n_envs,
@@ -225,12 +259,14 @@ def train_variant(
         )
         model_class = SAC if config.algorithm == "SAC" else PPO
         algorithm_kwargs = dict(config.sac if config.algorithm == "SAC" else config.ppo)
+        selected_policy = variant_policy(config, variant)
+        policy_kwargs = variant_policy_kwargs(config, variant, raw_obs_dim=raw_obs_dim)
         model = model_class(
-            config.policy,
+            selected_policy,
             train_env,
             learning_rate=learning_rate,
             **algorithm_kwargs,
-            policy_kwargs=variant_policy_kwargs(config, variant, raw_obs_dim=raw_obs_dim),
+            policy_kwargs=policy_kwargs,
             tensorboard_log=str(config.tensorboard_log),
             seed=config.seed,
             device=device,
@@ -299,6 +335,10 @@ def train_variant(
             action_dim=action_dim,
             training_wall_time_seconds=training_wall_time_seconds,
             sampled_transitions=model.num_timesteps,
+            policy_class=model.policy.__class__.__name__,
+            trainable_parameter_count=sum(
+                parameter.numel() for parameter in model.policy.parameters() if parameter.requires_grad
+            ),
         )
         summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
         return summary

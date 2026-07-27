@@ -109,5 +109,16 @@ separate from the training entrypoint without needing a second config parser.
 6. `sac_experiments/variants.py`
 7. `sac_experiments/ltc_features.py`
 
+## RBF PPO Extension
+
+`rbf_64`, `rbf_192`, `rbf_actor_mlp_critic_64`, and
+`rbf_actor_mlp_critic_192` are PPO-only variants. They are mapped in
+`sac_experiments/variants.py` to custom `ActorCriticPolicy` subclasses in
+`sac_experiments/rbf_policies.py`; no second training entrypoint is introduced.
+The RBF variants require `frame_stack: 1`, preserve the normal environment and
+evaluation lifecycle, and record their network structure and parameter count in
+the existing JSON summaries. See [`rbf_ppo.md`](rbf_ppo.md) for the experiment
+rationale and protocol.
+
 This mirrors the actual lifecycle: describe the experiment, validate it, train
 the selected variants, and inspect the feature implementation only when needed.
