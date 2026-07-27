@@ -1,7 +1,7 @@
 # SAC 并行环境采样技术说明
 
 本文说明本仓库如何为 Stable-Baselines3（SB3）SAC 接入并行环境、各个计数参数的
-精确定义，以及如何公平比较 `n_envs=1/2/4/8`。实现只并行环境采样；actor、critic、
+精确定义，以及如何公平比较 `n_envs=1/2/4`。实现只并行环境采样；actor、critic、
 target critic、replay buffer 和梯度更新仍由一个 SAC learner 管理，不是多 GPU 或
 分布式 learner 训练。
 
@@ -12,7 +12,7 @@ target critic、replay buffer 和梯度更新仍由一个 SAC learner 管理，�
 - [`sac_experiments/training.py`](../sac_experiments/training.py)：训练、评估、callback
   频率换算和 summary。
 - [`sac_experiments/config.py`](../sac_experiments/config.py)：`n_envs` 及整除约束。
-- [`configs/parallel_baseline.yaml`](../configs/parallel_baseline.yaml)：正式八环境基线。
+- [`configs/parallel_baseline.yaml`](../configs/parallel_baseline.yaml)：正式四环境基线。
 - [`configs/parallel_smoke.yaml`](../configs/parallel_smoke.yaml)：双环境短流程检查。
 
 ## 1. 执行结构
@@ -71,7 +71,7 @@ $$
 停在目标 transition 数。如果未来设置 $f>1$，为了避免最后一个 rollout block 越过目标，
 还应让 $T$ 能被 $nf$ 整除。
 
-## 3. 为什么八环境使用八次梯度更新
+## 3. 为什么四环境使用四次梯度更新
 
 比较单环境与并行环境时，不能只改 `n_envs` 而保持 `gradient_steps=1`。每个 cycle 的
 梯度更新/transition 比例为：
@@ -86,19 +86,14 @@ $$
 | 配置 | $n$ | $f$ | $g$ | $\rho_{\mathrm{update}}$ |
 |---|---:|---:|---:|---:|
 | 单环境 `baseline.yaml` | 1 | 1 | 1 | 1 |
-| 八环境 `parallel_baseline.yaml` | 8 | 1 | 8 | 1 |
+| 四环境 `parallel_baseline.yaml` | 4 | 1 | 4 | 1 |
 
-这里选择 8 个环境，而不是照搬 PPO 的 16 个环境。PPO 的 16 个 worker 用来构造一整批
-on-policy rollout；SAC 每次 VecEnv step 后还要串行执行 $g=n$ 次 actor/双 critic 更新。
-8 个 worker 是采样多样性、进程通信和 learner 计算之间更稳妥的起点。它仍然需要通过
-`n_envs=4/8` 的实测确认吞吐差异，不能称为全局最优。
-
-如果八环境仍设置 $g=1$，则 $\rho_{\mathrm{update}}=1/8$。这可能提高 wall-clock
-吞吐率，却同时减少每条数据获得的优化计算量，导致算法条件不再等价。设置 $g=8$ 的目的
+如果四环境仍设置 $g=1$，则 $\rho_{\mathrm{update}}=1/4$。这可能提高 wall-clock
+吞吐率，却同时减少每条数据获得的优化计算量，导致算法条件不再等价。设置 $g=4$ 的目的
 不是保证学习曲线完全相同，而是先控制最直接的 update-to-data ratio。
 
 SB3 还支持 `gradient_steps=-1`，表示按本轮收集的 transition 数决定更新次数。本仓库当前
-YAML 校验只接受正整数，所以正式实验显式写出 `gradient_steps: 8`，让 summary 和配置保持
+YAML 校验只接受正整数，所以正式实验显式写出 `gradient_steps: 4`，让 summary 和配置保持
 自描述。
 
 ## 4. replay buffer 的实际布局
@@ -128,9 +123,9 @@ $$
 并行环境的主要统计作用是提高同一时间段内的数据多样性，并降低完全由单条轨迹造成的短程
 相关性；它不会把 SAC 改成 on-policy 算法。
 
-`learning_starts` 同样按总 transition 数判断。八环境下经过
-$10000/8=1250$ 次 VecEnv step 会到达阈值；SB3 使用严格的 `num_timesteps >
-learning_starts` 条件，所以第一批梯度更新在下一次 VecEnv step 后、即 10008 个总
+`learning_starts` 同样按总 transition 数判断。四环境下经过
+$10000/4=2500$ 次 VecEnv step 会到达阈值；SB3 使用严格的 `num_timesteps >
+learning_starts` 条件，所以第一批梯度更新在下一次 VecEnv step 后、即 10004 个总
 transition 时发生。单环境基线也遵循相同的“超过阈值”语义。
 
 ## 5. callback 与 checkpoint 频率
@@ -142,14 +137,14 @@ $$
 F_{\mathrm{callback}} = \frac{F}{n}.
 $$
 
-配置校验要求 $F$ 能被 $n$ 整除。八环境正式配置中：
+配置校验要求 $F$ 能被 $n$ 整除。四环境正式配置中：
 
 $$
-F=10000,\qquad n=8,\qquad F_{\mathrm{callback}}=1250.
+F=10000,\qquad n=4,\qquad F_{\mathrm{callback}}=2500.
 $$
 
-因此评估和 checkpoint 仍按每 10,000 个总 transition 准确触发。summary 同时记录
-`eval_freq` 和 `callback_freq_vec_steps`，便于检查外部语义和
+因此评估和 checkpoint 仍在 10k、20k、30k 等总 transition 位置触发，而不是被推迟到
+40k。summary 同时记录 `eval_freq` 和 `callback_freq_vec_steps`，便于检查外部语义和
 SB3 内部调用频率。
 
 ## 6. 随机种子和训练/评估隔离
@@ -224,7 +219,7 @@ $t_{\mathrm{grad}}$ 已占主要时间，或 $t_{\mathrm{IPC}}$ 大于节省的�
 
 ## 9. 公平实验协议
 
-建议至少比较 $n\in\{1,2,4,8\}$，并保持以下条件：
+建议至少比较 $n\in\{1,2,4\}$，并保持以下条件：
 
 | 控制项 | 要求 |
 |---|---|
@@ -248,7 +243,7 @@ $t_{\mathrm{grad}}$ 已占主要时间，或 $t_{\mathrm{IPC}}$ 大于节省的�
 
 ## 10. 运行与验证
 
-八环境正式基线：
+四环境正式基线：
 
 ```bash
 conda run -n sac_sb3_demo python main.py \
