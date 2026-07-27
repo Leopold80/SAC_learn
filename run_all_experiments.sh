@@ -8,7 +8,7 @@ PYTHON=/home/leopold/anaconda3/envs/sac_sb3_demo/bin/python
 declare -A CONFIGS=(
     ["baseline"]="configs/baseline.yaml"
     ["parallel_2env"]="configs/parallel_2env.yaml"
-    ["parallel_4env"]="configs/parallel_baseline.yaml"
+    ["parallel_8env"]="configs/parallel_baseline.yaml"
 )
 SEEDS=(42 123 456)
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
@@ -27,7 +27,7 @@ SUMMARY="${LOG_DIR}/00_SUMMARY.txt"
 TOTAL=$((${#CONFIGS[@]} * ${#SEEDS[@]}))
 CURRENT=0
 
-for NAME in baseline parallel_2env parallel_4env; do
+for NAME in baseline parallel_2env parallel_8env; do
     CFG="${CONFIGS[$NAME]}"
     for SEED in "${SEEDS[@]}"; do
         CURRENT=$((CURRENT + 1))
