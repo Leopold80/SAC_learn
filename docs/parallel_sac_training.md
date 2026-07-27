@@ -224,16 +224,16 @@ $t_{\mathrm{grad}}$ 已占主要时间，或 $t_{\mathrm{IPC}}$ 大于节省的�
 
 ## 9. 公平实验协议
 
-建议至少比较 $n\in\{1,2,4,8\}$，并保持以下条件：
+统一 runner 比较 $n\in\{1,2,8,64\}$，并保持以下条件：
 
 | 控制项 | 要求 |
 |---|---|
-| 总 transition | 每组均为 500k |
+| 总 transition | 每组均为 499,968；它是 1、2、8、64 的公共整除值 |
 | 更新比例 | 保持 $g/(nf)=1$，即 $g=n$、$f=1$ |
 | 网络和 SAC 参数 | 除 `gradient_steps` 外保持一致 |
-| 评估间隔 | 均按总 transition 每 10k 评估 |
+| warmup / 评估间隔 | 保留 10,000-transition warmup；评估每 9,984 transitions。64-worker 的首个更新最多晚一个 VecEnv step（63 transitions） |
 | 评估 episode 数 | 每次 10 episodes |
-| base seeds | 推荐 0、1、2、3、4 |
+| base seeds | 默认 42、123、456，可通过 `SEED_LIST` 扩展 |
 | 输出 | 每次使用不同 `output.run_tag` |
 
 每组至少报告：
@@ -248,22 +248,31 @@ $t_{\mathrm{grad}}$ 已占主要时间，或 $t_{\mathrm{IPC}}$ 大于节省的�
 
 ## 10. 运行与验证
 
-八环境正式基线：
+完整多 seed 采样规模矩阵：
 
 ```bash
-conda run -n sac_sb3_demo python main.py \
-  --config configs/parallel_baseline.yaml
+CONDA_ENV=sac_sb3_demo ./run_all_experiments.sh
 ```
 
-双环境流程检查：
+脚本在 macOS 默认使用 CPU；在检测到 `nvidia-smi` 的 Ubuntu 主机上默认使用 CUDA，
+也可显式覆盖。为了避免 GPU、worker 和输出目录竞争，所有配置与 seed 都串行运行：
 
 ```bash
-conda run -n sac_sb3_demo python main.py \
-  --config configs/parallel_smoke.yaml
+DEVICE=cpu ./run_all_experiments.sh
+SEED_LIST="42 123 456 789 2026" ./run_all_experiments.sh
 ```
 
-smoke 只验证子进程创建、数据收集、梯度更新、评估、checkpoint 和 summary 是否贯通，
-其 reward 不能作为研究结果。
+`EXPERIMENTS="parallel_64env" ./run_all_experiments.sh` 可只运行矩阵中的 64-worker
+成员。`run_64env_serial.sh` 保留为这个单成员调用的兼容入口，不再维护重复的实验逻辑。
+
+双环境 smoke 仍用于流程检查：
+
+```bash
+conda run -n sac_sb3_demo python main.py --config configs/parallel_smoke.yaml
+```
+
+smoke 只验证子进程创建、数据收集、梯度更新、评估、checkpoint 和 summary 是否贯通；其
+reward 不能作为研究结果。
 
 ## 11. 参考
 
