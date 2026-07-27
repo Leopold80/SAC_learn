@@ -1,4 +1,5 @@
-# Eight-process sampling experiment for the single-frame MLP baseline.
+# Eight-process SAC with large batch (2048) and 1 gradient step per gather.
+# Tests the effect of large batch updates vs higher gradient_steps.
 
 experiment:
   environment: LunarLanderContinuous-v3
@@ -9,8 +10,6 @@ experiment:
 
 environment:
   frame_stack: 1
-  # Eight workers increase sample diversity while limiting IPC and the burst of
-  # sequential learner updates compared with copying PPO's 16-worker setup.
   n_envs: 8
 
 training:
@@ -18,15 +17,15 @@ training:
   seed: 42
   device: cuda
   allow_cpu: false
-  progress_bar: true
+  progress_bar: false
 
 evaluation:
   episodes: 10
   frequency: 10000
 
 output:
-  directory: outputs/lunarlander_parallel_baseline
-  tensorboard_log: runs/lunarlander_parallel_baseline
+  directory: outputs/lunarlander_large_batch_sac
+  tensorboard_log: runs/lunarlander_large_batch_sac
   run_tag: null
 
 sac:
@@ -34,14 +33,12 @@ sac:
   learning_rate_schedule: linear
   policy_net_arch: [400, 300]
   buffer_size: 1000000
-  batch_size: 256
+  batch_size: 2048
   ent_coef: auto
   gamma: 0.99
   tau: 0.01
   train_freq: 1
-  # One VecEnv step collects eight transitions. Eight updates preserve the
-  # single-environment baseline's approximate 1:1 update-to-data ratio.
-  gradient_steps: 8
+  gradient_steps: 1
   learning_starts: 10000
 
 ltc:
