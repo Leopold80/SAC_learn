@@ -1,9 +1,42 @@
 __pycache__/
 *.py[cod]
 
-outputs/
-runs/
-training_logs/
+# Keep reproducible experiment evidence in Git: JSON summaries, evaluation
+# arrays, monitor CSVs, launcher logs, TensorBoard events and visual reports.
+# Only trained weights/checkpoints and local rendering caches stay untracked.
+outputs/**/best_model/
+outputs/**/checkpoints/
+outputs/**/final_model.zip
+outputs/**/*.zip
+outputs/**/*.pt
+outputs/**/*.pth
+outputs/**/*.ckpt
+outputs/**/*.onnx
+outputs/**/*.safetensors
+outputs/**/*.pkl
+outputs/**/*.pickle
+outputs/**/*.h5
+outputs/**/matplotlib/
+
+runs/**/*.zip
+runs/**/*.pt
+runs/**/*.pth
+runs/**/*.ckpt
+runs/**/*.onnx
+runs/**/*.safetensors
+runs/**/*.pkl
+runs/**/*.pickle
+runs/**/*.h5
+
+training_logs/**/*.zip
+training_logs/**/*.pt
+training_logs/**/*.pth
+training_logs/**/*.ckpt
+training_logs/**/*.onnx
+training_logs/**/*.safetensors
+training_logs/**/*.pkl
+training_logs/**/*.pickle
+training_logs/**/*.h5
 
 .pytest_cache/
 .mypy_cache/

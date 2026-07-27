@@ -1,0 +1,6 @@
+# Keep generated text artifacts reviewable and avoid CRLF being reported as
+# trailing whitespace by Git's diff checker.
+*.csv text eol=lf
+*.json text eol=lf
+*.log text eol=lf
+*.txt text eol=lf

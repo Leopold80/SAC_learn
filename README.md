@@ -311,6 +311,29 @@ outputs/lunarlander/[<run_tag>/]<variant>/eval_logs/evaluations.npz
 - best / final model path
 - 训练前后 reward
 
+### 训练产物同步规则
+
+仓库会提交可复查、体积小的实验记录：`experiment_summary*.json`、每个 variant 的
+`eval_summary.json`、`evaluations.npz`、`monitor/*.csv`、multi-seed 启动日志、
+TensorBoard `events.out.tfevents.*` 与 GIF 等可视化报告。这样克隆仓库后可以复查
+指标、学习曲线和运行过程，而不需要下载模型参数。
+
+训练权重和 checkpoint 不提交：`best_model/`、`checkpoints/`、`final_model.zip`，以及
+产物目录中的 `.zip`、`.pt`、`.pth`、`.ckpt`、`.onnx`、`.safetensors`、`.pkl`、
+`.pickle` 与 `.h5` 文件均由 [`.gitignore`](.gitignore) 排除；Matplotlib 字体缓存也不提交。
+因此可以安全执行：
+
+```bash
+git add outputs runs training_logs
+```
+
+提交前仍建议检查暂存内容，确保不存在计划外的大文件：
+
+```bash
+git diff --cached --stat
+git diff --cached --numstat
+```
+
 ### GIF 可视化
 
 普通模型：

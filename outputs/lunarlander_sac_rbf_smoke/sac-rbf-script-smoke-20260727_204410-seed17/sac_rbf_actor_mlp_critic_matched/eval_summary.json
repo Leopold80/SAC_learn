@@ -1,0 +1,89 @@
+{
+  "config": "/var/folders/5t/czzmqpq139s6lhzc9dslwl480000gn/T/sac_rbf_seed17.kymXHR",
+  "variant": "sac_rbf_actor_mlp_critic_matched",
+  "env_id": "LunarLanderContinuous-v3",
+  "algorithm": "SAC",
+  "algorithm_source": "stable-baselines3==2.7.0",
+  "policy": "MlpPolicy",
+  "policy_class": "RBFSACActorMLPCriticPolicy",
+  "seed": 17,
+  "timesteps": 64,
+  "frame_stack": 1,
+  "n_envs": 2,
+  "vec_env": "SubprocVecEnv",
+  "worker_seeds": [
+    17,
+    18
+  ],
+  "eval_seed": 19,
+  "uses_action_history": false,
+  "raw_obs_dim": 8,
+  "action_dim": 2,
+  "learning_rate": {
+    "initial": 0.00073,
+    "schedule": "linear"
+  },
+  "buffer_size": 10000,
+  "batch_size": 16,
+  "ent_coef": "auto",
+  "gamma": 0.99,
+  "tau": 0.01,
+  "train_freq": 1,
+  "gradient_steps": 2,
+  "learning_starts": 48,
+  "policy_kwargs": {
+    "net_arch": [
+      400,
+      300
+    ],
+    "features_extractor": "FlattenExtractor"
+  },
+  "network": {
+    "actor": "GaussianRBF -> squashed Gaussian-policy heads",
+    "critic": "two independent SB3 MLP Q(state, action) heads",
+    "target_critic": "Polyak-updated copies of the MLP twin Q critics",
+    "critic_net_arch": [
+      400,
+      300
+    ],
+    "hidden_mlp": true
+  },
+  "trainable_parameter_count": 625108,
+  "parameter_counts": {
+    "policy_total": 625108,
+    "actor": 125104,
+    "online_critic": 250002,
+    "target_critic": 250002,
+    "optimized_total": 375106
+  },
+  "ltc": null,
+  "rbf": {
+    "num_centers": 6255,
+    "center_init_range": 1.0,
+    "initial_bandwidth": 1.5,
+    "min_bandwidth": 0.05,
+    "centers": "learnable",
+    "bandwidths": "learnable diagonal per-center widths",
+    "basis": "exp(-0.5 * sum(((x-c)/sigma)^2))",
+    "capacity_match": "SAC actor optimizer parameters"
+  },
+  "eval_episodes": 1,
+  "eval_freq": 64,
+  "callback_freq_vec_steps": 32,
+  "training_wall_time_seconds": 0.21090499999991152,
+  "sampled_transitions": 64,
+  "sample_throughput_transitions_per_second": 303.454161826542,
+  "gradient_updates_per_transition": 1.0,
+  "before_training": {
+    "mean_reward": -357.558386,
+    "std_reward": 0.0
+  },
+  "after_training": {
+    "mean_reward": -113.200424,
+    "std_reward": 0.0
+  },
+  "best_eval_mean_reward": -132.724433,
+  "final_model_path": "outputs/lunarlander_sac_rbf_smoke/sac-rbf-script-smoke-20260727_204410-seed17/sac_rbf_actor_mlp_critic_matched/final_model.zip",
+  "best_model_path": "outputs/lunarlander_sac_rbf_smoke/sac-rbf-script-smoke-20260727_204410-seed17/sac_rbf_actor_mlp_critic_matched/best_model/best_model.zip",
+  "tensorboard_log": "runs/lunarlander_sac_rbf_smoke/sac-rbf-script-smoke-20260727_204410-seed17/rbf_act_match_1"
+}

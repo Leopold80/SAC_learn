@@ -1,0 +1,10 @@
+PPO RBF multi-seed comparison started at Mon Jul 27 18:10:06 CST 2026
+host_os=Darwin
+device=cpu allow_cpu=true
+gpu=none
+config=configs/smoke/ppo_rbf.yaml
+seeds=7
+runner=/opt/miniconda3/envs/cybernetic_env/bin/python
+
+[1/1] seed=7 wall=23s exit=0 Mon Jul 27 18:10:29 CST 2026
+=== COMPLETE at Mon Jul 27 18:10:29 CST 2026 ===

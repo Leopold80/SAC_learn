@@ -1,0 +1,80 @@
+{
+  "config": "configs/ppo_parallel_smoke.yaml",
+  "env_id": "LunarLanderContinuous-v3",
+  "algorithm": "PPO",
+  "seed": 42,
+  "timesteps": 128,
+  "frame_stack": 1,
+  "n_envs": 2,
+  "variants": [
+    {
+      "config": "configs/ppo_parallel_smoke.yaml",
+      "variant": "mlp",
+      "env_id": "LunarLanderContinuous-v3",
+      "algorithm": "PPO",
+      "algorithm_source": "stable-baselines3==2.7.0",
+      "policy": "MlpPolicy",
+      "seed": 42,
+      "timesteps": 128,
+      "frame_stack": 1,
+      "n_envs": 2,
+      "vec_env": "SubprocVecEnv",
+      "worker_seeds": [
+        42,
+        43
+      ],
+      "eval_seed": 44,
+      "uses_action_history": false,
+      "raw_obs_dim": 8,
+      "action_dim": 2,
+      "learning_rate": {
+        "initial": 0.0003,
+        "schedule": "constant"
+      },
+      "n_steps": 32,
+      "batch_size": 64,
+      "n_epochs": 1,
+      "gamma": 0.999,
+      "gae_lambda": 0.98,
+      "clip_range": 0.2,
+      "clip_range_vf": null,
+      "normalize_advantage": true,
+      "ent_coef": 0.01,
+      "vf_coef": 0.5,
+      "max_grad_norm": 0.5,
+      "use_sde": false,
+      "sde_sample_freq": -1,
+      "target_kl": null,
+      "policy_kwargs": {
+        "net_arch": [
+          32,
+          32
+        ],
+        "features_extractor": "FlattenExtractor"
+      },
+      "ltc": null,
+      "eval_episodes": 1,
+      "eval_freq": 64,
+      "callback_freq_vec_steps": 32,
+      "training_wall_time_seconds": 0.11901483299880056,
+      "sampled_transitions": 128,
+      "sample_throughput_transitions_per_second": 1075.4961946742385,
+      "rollout_size_transitions": 64,
+      "minibatches_per_epoch": 1,
+      "optimizer_steps_per_rollout": 1,
+      "sample_reuse_epochs": 1,
+      "before_training": {
+        "mean_reward": -139.279969,
+        "std_reward": 0.0
+      },
+      "after_training": {
+        "mean_reward": -106.931886,
+        "std_reward": 0.0
+      },
+      "best_eval_mean_reward": -122.439482,
+      "final_model_path": "outputs/lunarlander_ppo_parallel_smoke/mlp/final_model.zip",
+      "best_model_path": "outputs/lunarlander_ppo_parallel_smoke/mlp/best_model/best_model.zip",
+      "tensorboard_log": "runs/lunarlander_ppo_parallel_smoke/mlp_1"
+    }
+  ]
+}

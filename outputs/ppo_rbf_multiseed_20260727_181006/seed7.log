@@ -1,0 +1,239 @@
+==============================================
+[1/1] seed=7 device=cpu
+started: Mon Jul 27 18:10:06 CST 2026
+run_tag: ppo-rbf-script-smoke-20260727_181006-seed7
+==============================================
+Matplotlib is building the font cache; this may take a moment.
+
+=== Training variant: mlp ===
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+Using cpu device
+mlp before training: mean_reward=-415.53 +/- 0.00
+Logging to runs/lunarlander_ppo_rbf_smoke/ppo-rbf-script-smoke-20260727_181006-seed7/mlp_1
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py:418: UserWarning: Training and eval env are not of the same type<stable_baselines3.common.vec_env.subproc_vec_env.SubprocVecEnv object at 0x1580332c0> != <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x15b34a300>
+  warnings.warn("Training and eval env are not of the same type" f"{self.training_env} != {self.eval_env}")
+Eval num_timesteps=64, episode_reward=-295.61 +/- 0.00
+Episode length: 91.00 +/- 0.00
+---------------------------------
+| eval/              |          |
+|    mean_ep_length  | 91       |
+|    mean_reward     | -296     |
+| time/              |          |
+|    total_timesteps | 64       |
+---------------------------------
+New best mean reward!
+Eval num_timesteps=128, episode_reward=-177.63 +/- 0.00
+Episode length: 81.00 +/- 0.00
+---------------------------------------
+| eval/                   |           |
+|    mean_ep_length       | 81        |
+|    mean_reward          | -178      |
+| time/                   |           |
+|    total_timesteps      | 128       |
+| train/                  |           |
+|    approx_kl            | 0.0       |
+|    clip_fraction        | 0         |
+|    clip_range           | 0.2       |
+|    entropy_loss         | -2.84     |
+|    explained_variance   | 0.00336   |
+|    learning_rate        | 0.0003    |
+|    loss                 | 185       |
+|    n_updates            | 1         |
+|    policy_gradient_loss | -9.31e-09 |
+|    std                  | 1         |
+|    value_loss           | 369       |
+---------------------------------------
+New best mean reward!
+Wrapping the env in a DummyVecEnv.
+mlp after training: mean_reward=-142.28 +/- 0.00
+
+=== Training variant: rbf_64 ===
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+Using cpu device
+rbf_64 before training: mean_reward=14.39 +/- 0.00
+Logging to runs/lunarlander_ppo_rbf_smoke/ppo-rbf-script-smoke-20260727_181006-seed7/rbf_64_1
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py:418: UserWarning: Training and eval env are not of the same type<stable_baselines3.common.vec_env.subproc_vec_env.SubprocVecEnv object at 0x15cddffe0> != <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x15cadaa20>
+  warnings.warn("Training and eval env are not of the same type" f"{self.training_env} != {self.eval_env}")
+Eval num_timesteps=64, episode_reward=-151.90 +/- 0.00
+Episode length: 69.00 +/- 0.00
+---------------------------------
+| eval/              |          |
+|    mean_ep_length  | 69       |
+|    mean_reward     | -152     |
+| time/              |          |
+|    total_timesteps | 64       |
+---------------------------------
+New best mean reward!
+Eval num_timesteps=128, episode_reward=-13.64 +/- 0.00
+Episode length: 94.00 +/- 0.00
+---------------------------------------
+| eval/                   |           |
+|    mean_ep_length       | 94        |
+|    mean_reward          | -13.6     |
+| time/                   |           |
+|    total_timesteps      | 128       |
+| train/                  |           |
+|    approx_kl            | 0.0       |
+|    clip_fraction        | 0         |
+|    clip_range           | 0.2       |
+|    entropy_loss         | -2.84     |
+|    explained_variance   | -0.000508 |
+|    learning_rate        | 0.0003    |
+|    loss                 | 107       |
+|    n_updates            | 1         |
+|    policy_gradient_loss | 3.73e-09  |
+|    std                  | 1         |
+|    value_loss           | 214       |
+---------------------------------------
+New best mean reward!
+Wrapping the env in a DummyVecEnv.
+rbf_64 after training: mean_reward=-103.43 +/- 0.00
+
+=== Training variant: rbf_192 ===
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+Using cpu device
+rbf_192 before training: mean_reward=9.95 +/- 0.00
+Logging to runs/lunarlander_ppo_rbf_smoke/ppo-rbf-script-smoke-20260727_181006-seed7/rbf_192_1
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py:418: UserWarning: Training and eval env are not of the same type<stable_baselines3.common.vec_env.subproc_vec_env.SubprocVecEnv object at 0x15cc398b0> != <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x15ce07200>
+  warnings.warn("Training and eval env are not of the same type" f"{self.training_env} != {self.eval_env}")
+Eval num_timesteps=64, episode_reward=-120.56 +/- 0.00
+Episode length: 88.00 +/- 0.00
+---------------------------------
+| eval/              |          |
+|    mean_ep_length  | 88       |
+|    mean_reward     | -121     |
+| time/              |          |
+|    total_timesteps | 64       |
+---------------------------------
+New best mean reward!
+Eval num_timesteps=128, episode_reward=-127.88 +/- 0.00
+Episode length: 77.00 +/- 0.00
+---------------------------------------
+| eval/                   |           |
+|    mean_ep_length       | 77        |
+|    mean_reward          | -128      |
+| time/                   |           |
+|    total_timesteps      | 128       |
+| train/                  |           |
+|    approx_kl            | 0.0       |
+|    clip_fraction        | 0         |
+|    clip_range           | 0.2       |
+|    entropy_loss         | -2.84     |
+|    explained_variance   | -0.00128  |
+|    learning_rate        | 0.0003    |
+|    loss                 | 291       |
+|    n_updates            | 1         |
+|    policy_gradient_loss | -7.45e-08 |
+|    std                  | 1         |
+|    value_loss           | 583       |
+---------------------------------------
+Wrapping the env in a DummyVecEnv.
+rbf_192 after training: mean_reward=-5.63 +/- 0.00
+
+=== Training variant: rbf_actor_mlp_critic_64 ===
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+Using cpu device
+rbf_actor_mlp_critic_64 before training: mean_reward=13.96 +/- 0.00
+Logging to runs/lunarlander_ppo_rbf_smoke/ppo-rbf-script-smoke-20260727_181006-seed7/rbf_act_mlp64_1
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py:418: UserWarning: Training and eval env are not of the same type<stable_baselines3.common.vec_env.subproc_vec_env.SubprocVecEnv object at 0x15941cdd0> != <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x15ce481a0>
+  warnings.warn("Training and eval env are not of the same type" f"{self.training_env} != {self.eval_env}")
+Eval num_timesteps=64, episode_reward=-151.90 +/- 0.00
+Episode length: 69.00 +/- 0.00
+---------------------------------
+| eval/              |          |
+|    mean_ep_length  | 69       |
+|    mean_reward     | -152     |
+| time/              |          |
+|    total_timesteps | 64       |
+---------------------------------
+New best mean reward!
+Eval num_timesteps=128, episode_reward=-13.64 +/- 0.00
+Episode length: 94.00 +/- 0.00
+--------------------------------------
+| eval/                   |          |
+|    mean_ep_length       | 94       |
+|    mean_reward          | -13.6    |
+| time/                   |          |
+|    total_timesteps      | 128      |
+| train/                  |          |
+|    approx_kl            | 0.0      |
+|    clip_fraction        | 0        |
+|    clip_range           | 0.2      |
+|    entropy_loss         | -2.84    |
+|    explained_variance   | -0.0168  |
+|    learning_rate        | 0.0003   |
+|    loss                 | 27.4     |
+|    n_updates            | 1        |
+|    policy_gradient_loss | 1.45e-07 |
+|    std                  | 1        |
+|    value_loss           | 54.9     |
+--------------------------------------
+New best mean reward!
+Wrapping the env in a DummyVecEnv.
+rbf_actor_mlp_critic_64 after training: mean_reward=-103.43 +/- 0.00
+
+=== Training variant: rbf_actor_mlp_critic_192 ===
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/pygame/pkgdata.py:25: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  from pkg_resources import resource_stream, resource_exists
+Using cpu device
+rbf_actor_mlp_critic_192 before training: mean_reward=-410.24 +/- 0.00
+Logging to runs/lunarlander_ppo_rbf_smoke/ppo-rbf-script-smoke-20260727_181006-seed7/rbf_act_mlp192_1
+/opt/miniconda3/envs/cybernetic_env/lib/python3.12/site-packages/stable_baselines3/common/callbacks.py:418: UserWarning: Training and eval env are not of the same type<stable_baselines3.common.vec_env.subproc_vec_env.SubprocVecEnv object at 0x15b45ad20> != <stable_baselines3.common.vec_env.dummy_vec_env.DummyVecEnv object at 0x15ce48470>
+  warnings.warn("Training and eval env are not of the same type" f"{self.training_env} != {self.eval_env}")
+Eval num_timesteps=64, episode_reward=-47.68 +/- 0.00
+Episode length: 120.00 +/- 0.00
+---------------------------------
+| eval/              |          |
+|    mean_ep_length  | 120      |
+|    mean_reward     | -47.7    |
+| time/              |          |
+|    total_timesteps | 64       |
+---------------------------------
+New best mean reward!
+Eval num_timesteps=128, episode_reward=-130.45 +/- 0.00
+Episode length: 76.00 +/- 0.00
+---------------------------------------
+| eval/                   |           |
+|    mean_ep_length       | 76        |
+|    mean_reward          | -130      |
+| time/                   |           |
+|    total_timesteps      | 128       |
+| train/                  |           |
+|    approx_kl            | 0.0       |
+|    clip_fraction        | 0         |
+|    clip_range           | 0.2       |
+|    entropy_loss         | -2.84     |
+|    explained_variance   | -0.0155   |
+|    learning_rate        | 0.0003    |
+|    loss                 | 179       |
+|    n_updates            | 1         |
+|    policy_gradient_loss | -9.69e-08 |
+|    std                  | 1         |
+|    value_loss           | 359       |
+---------------------------------------
+Wrapping the env in a DummyVecEnv.
+rbf_actor_mlp_critic_192 after training: mean_reward=-136.20 +/- 0.00
+
+=== Experiment complete ===
+Summary: outputs/lunarlander_ppo_rbf_smoke/ppo-rbf-script-smoke-20260727_181006-seed7/experiment_summary.json
+mlp: final=-142.28, best_eval=-177.627213
+rbf_64: final=-103.43, best_eval=-13.635971
+rbf_192: final=-5.63, best_eval=-120.562813
+rbf_actor_mlp_critic_64: final=-103.43, best_eval=-13.635971
+rbf_actor_mlp_critic_192: final=-136.20, best_eval=-47.676446

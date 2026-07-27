@@ -1,0 +1,11 @@
+Matched SAC sampling-scale experiment started at Mon Jul 27 18:25:58 CST 2026
+host_os=Darwin
+device=cpu allow_cpu=true
+gpu=none
+experiments=parallel_64env
+seeds=18
+timesteps=128 eval_frequency=64 learning_starts=64
+runner=/opt/miniconda3/envs/cybernetic_env/bin/python
+
+[1/1] parallel_64env seed=18 wall=68s exit=0 Mon Jul 27 18:27:06 CST 2026
+=== COMPLETE at Mon Jul 27 18:27:06 CST 2026 ===

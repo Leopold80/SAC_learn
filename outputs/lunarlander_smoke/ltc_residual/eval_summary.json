@@ -1,0 +1,59 @@
+{
+  "config": "configs/smoke.yaml",
+  "variant": "ltc_residual",
+  "env_id": "LunarLanderContinuous-v3",
+  "algorithm": "SAC",
+  "algorithm_source": "stable-baselines3==2.7.0",
+  "policy": "MlpPolicy",
+  "seed": 42,
+  "timesteps": 2000,
+  "frame_stack": 4,
+  "uses_action_history": false,
+  "raw_obs_dim": 8,
+  "action_dim": 2,
+  "learning_rate": {
+    "initial": 0.00073,
+    "schedule": "linear"
+  },
+  "buffer_size": 1000000,
+  "batch_size": 256,
+  "ent_coef": "auto",
+  "gamma": 0.99,
+  "tau": 0.01,
+  "train_freq": 1,
+  "gradient_steps": 1,
+  "learning_starts": 10000,
+  "policy_kwargs": {
+    "net_arch": [
+      400,
+      300
+    ],
+    "features_extractor": "ResidualCircuitLTCFeaturesExtractor"
+  },
+  "ltc": {
+    "liquid_hidden_dim": 128,
+    "features_dim": 256,
+    "dt": 1.0,
+    "raw_features_dim": 128,
+    "fusion_hidden_dim": 256,
+    "tau_min": 0.1,
+    "ode_unfolds": 4,
+    "reversal_init_scale": 1.0,
+    "ode": "dx_i = -x_i/tau_i + sum_j f_ij(x_j,u;theta) * (A_ij - x_i)",
+    "residual": "raw stacked observation projection + LTC feature concat"
+  },
+  "eval_episodes": 2,
+  "eval_freq": 1000,
+  "before_training": {
+    "mean_reward": -274.7619465,
+    "std_reward": 3.6348695000000077
+  },
+  "after_training": {
+    "mean_reward": -277.95509,
+    "std_reward": 21.14629500000001
+  },
+  "best_eval_mean_reward": -109.6433755,
+  "final_model_path": "outputs/lunarlander_smoke/ltc_residual/final_model.zip",
+  "best_model_path": "outputs/lunarlander_smoke/ltc_residual/best_model/best_model.zip",
+  "tensorboard_log": "runs/lunarlander_smoke/ltc_res_2"
+}

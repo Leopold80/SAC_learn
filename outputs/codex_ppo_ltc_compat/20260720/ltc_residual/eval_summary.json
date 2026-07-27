@@ -1,0 +1,79 @@
+{
+  "config": "configs/codex_ppo_ltc_compat.yaml",
+  "variant": "ltc_residual",
+  "env_id": "LunarLanderContinuous-v3",
+  "algorithm": "PPO",
+  "algorithm_source": "stable-baselines3==2.7.0",
+  "policy": "MlpPolicy",
+  "seed": 161803,
+  "timesteps": 2,
+  "frame_stack": 4,
+  "n_envs": 1,
+  "vec_env": "DummyVecEnv",
+  "worker_seeds": [
+    161803
+  ],
+  "eval_seed": 161804,
+  "uses_action_history": false,
+  "raw_obs_dim": 8,
+  "action_dim": 2,
+  "learning_rate": {
+    "initial": 0.0003,
+    "schedule": "constant"
+  },
+  "n_steps": 2,
+  "batch_size": 2,
+  "n_epochs": 1,
+  "gamma": 0.999,
+  "gae_lambda": 0.98,
+  "clip_range": 0.2,
+  "clip_range_vf": null,
+  "normalize_advantage": true,
+  "ent_coef": 0.01,
+  "vf_coef": 0.5,
+  "max_grad_norm": 0.5,
+  "use_sde": false,
+  "sde_sample_freq": -1,
+  "target_kl": null,
+  "policy_kwargs": {
+    "net_arch": [
+      16,
+      16
+    ],
+    "features_extractor": "ResidualCircuitLTCFeaturesExtractor"
+  },
+  "ltc": {
+    "liquid_hidden_dim": 128,
+    "features_dim": 256,
+    "dt": 1.0,
+    "raw_features_dim": 128,
+    "fusion_hidden_dim": 256,
+    "tau_min": 0.1,
+    "ode_unfolds": 4,
+    "reversal_init_scale": 1.0,
+    "ode": "dx_i = -x_i/tau_i + sum_j f_ij(x_j,u;theta) * (A_ij - x_i)",
+    "residual": "raw stacked observation projection + LTC feature concat"
+  },
+  "eval_episodes": 1,
+  "eval_freq": 2,
+  "callback_freq_vec_steps": 2,
+  "training_wall_time_seconds": 0.21571808300359407,
+  "sampled_transitions": 2,
+  "sample_throughput_transitions_per_second": 9.2713599720181,
+  "rollout_size_transitions": 2,
+  "minibatches_per_epoch": 1,
+  "optimizer_steps_per_rollout": 1,
+  "sample_reuse_epochs": 1,
+  "before_training": {
+    "mean_reward": -131.741689,
+    "std_reward": 0.0
+  },
+  "after_training": {
+    "mean_reward": -334.468897,
+    "std_reward": 0.0
+  },
+  "best_eval_mean_reward": -157.972631,
+  "final_model_path": "outputs/codex_ppo_ltc_compat/20260720/ltc_residual/final_model.zip",
+  "best_model_path": "outputs/codex_ppo_ltc_compat/20260720/ltc_residual/best_model/best_model.zip",
+  "tensorboard_log": "runs/codex_ppo_ltc_compat/20260720/ltc_res_1"
+}
