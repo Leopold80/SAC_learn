@@ -31,6 +31,7 @@ from sac_experiments.variants import (
     canonical_variant,
     is_ltc_variant,
     is_rbf_variant,
+    is_sac_only_rbf_variant,
 )
 
 
@@ -103,6 +104,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "rbf": {
         "small_num_centers": 64,
         "large_num_centers": 192,
+        "sac_strict_matched_num_centers": 6050,
+        "sac_actor_matched_num_centers": 6255,
         "center_init_range": 1.0,
         "initial_bandwidth": 1.5,
         "min_bandwidth": 0.05,
@@ -271,11 +274,13 @@ def load_config(path: Path) -> ExperimentConfig:
         raise ValueError("LTC variants require environment.frame_stack to be at least 2.")
     if frame_stack != 1 and any(is_rbf_variant(variant) for variant in variants):
         raise ValueError(
-            "RBF PPO variants require environment.frame_stack to be exactly 1 so they "
-            "use the same Markov observation as the PPO MLP baseline."
+            "RBF variants require environment.frame_stack to be exactly 1 so they "
+            "use the same Markov observation as the MLP baseline."
         )
-    if algorithm != "PPO" and any(is_rbf_variant(variant) for variant in variants):
-        raise ValueError("RBF variants are currently implemented only for PPO.")
+    if algorithm != "SAC" and any(
+        is_sac_only_rbf_variant(variant) for variant in variants
+    ):
+        raise ValueError("The capacity-matched RBF variants are implemented only for SAC.")
     timesteps = _positive_int(training["timesteps"], "training.timesteps")
     if n_envs > timesteps:
         raise ValueError("environment.n_envs must not exceed training.timesteps.")
@@ -420,7 +425,12 @@ def load_config(path: Path) -> ExperimentConfig:
     for key in ("dt", "tau_min", "reversal_init_scale"):
         _positive_float(ltc[key], f"ltc.{key}")
 
-    for key in ("small_num_centers", "large_num_centers"):
+    for key in (
+        "small_num_centers",
+        "large_num_centers",
+        "sac_strict_matched_num_centers",
+        "sac_actor_matched_num_centers",
+    ):
         _positive_int(rbf[key], f"rbf.{key}")
     if rbf["small_num_centers"] == rbf["large_num_centers"]:
         raise ValueError(

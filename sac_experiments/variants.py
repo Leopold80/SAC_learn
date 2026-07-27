@@ -13,6 +13,10 @@ from sac_experiments.rbf_policies import (
     RBFActorCriticPolicy,
     RBFActorMLPCriticPolicy,
 )
+from sac_experiments.rbf_sac_policies import (
+    RBFSACActorMLPCriticPolicy,
+    RBFSACPolicy,
+)
 
 Variant = Literal[
     "mlp",
@@ -24,6 +28,8 @@ Variant = Literal[
     "rbf_192",
     "rbf_actor_mlp_critic_64",
     "rbf_actor_mlp_critic_192",
+    "sac_rbf_matched",
+    "sac_rbf_actor_mlp_critic_matched",
 ]
 DEFAULT_VARIANTS: tuple[Variant, ...] = (
     "mlp",
@@ -32,11 +38,23 @@ DEFAULT_VARIANTS: tuple[Variant, ...] = (
     "ltc_residual_action",
 )
 LEGACY_VARIANTS: tuple[Variant, ...] = ("ltc_simple",)
-RBF_VARIANTS: tuple[Variant, ...] = (
+RBF_STRICT_VARIANTS: tuple[Variant, ...] = (
     "rbf_64",
     "rbf_192",
+    "sac_rbf_matched",
+)
+RBF_ACTOR_MLP_CRITIC_VARIANTS: tuple[Variant, ...] = (
     "rbf_actor_mlp_critic_64",
     "rbf_actor_mlp_critic_192",
+    "sac_rbf_actor_mlp_critic_matched",
+)
+SAC_ONLY_RBF_VARIANTS: tuple[Variant, ...] = (
+    "sac_rbf_matched",
+    "sac_rbf_actor_mlp_critic_matched",
+)
+RBF_VARIANTS: tuple[Variant, ...] = (
+    *RBF_STRICT_VARIANTS,
+    *RBF_ACTOR_MLP_CRITIC_VARIANTS,
 )
 ALL_VARIANTS: tuple[Variant, ...] = DEFAULT_VARIANTS + LEGACY_VARIANTS + RBF_VARIANTS
 LEGACY_VARIANT_ALIASES = {
@@ -66,6 +84,10 @@ def is_rbf_variant(variant: Variant) -> bool:
     return variant in RBF_VARIANTS
 
 
+def is_sac_only_rbf_variant(variant: Variant) -> bool:
+    return variant in SAC_ONLY_RBF_VARIANTS
+
+
 def uses_action_history(variant: Variant) -> bool:
     return variant == "ltc_residual_action"
 
@@ -79,6 +101,10 @@ def tensorboard_run_name(variant: Variant) -> str:
         return "rbf_act_mlp64"
     if variant == "rbf_actor_mlp_critic_192":
         return "rbf_act_mlp192"
+    if variant == "sac_rbf_matched":
+        return "rbf_match"
+    if variant == "sac_rbf_actor_mlp_critic_matched":
+        return "rbf_act_match"
     return variant
 
 
@@ -99,6 +125,10 @@ def rbf_num_centers(config, variant: Variant) -> int:
         return config.rbf["small_num_centers"]
     if variant in {"rbf_192", "rbf_actor_mlp_critic_192"}:
         return config.rbf["large_num_centers"]
+    if variant == "sac_rbf_matched":
+        return config.rbf["sac_strict_matched_num_centers"]
+    if variant == "sac_rbf_actor_mlp_critic_matched":
+        return config.rbf["sac_actor_matched_num_centers"]
     raise ValueError(f"{variant!r} is not an RBF variant.")
 
 
@@ -115,6 +145,10 @@ def rbf_policy_kwargs(config, variant: Variant) -> dict[str, Any]:
 def variant_policy(config, variant: Variant):
     """Return the SB3 policy class/string selected by one configured variant."""
 
+    if config.algorithm == "SAC" and variant in RBF_STRICT_VARIANTS:
+        return RBFSACPolicy
+    if config.algorithm == "SAC" and variant in RBF_ACTOR_MLP_CRITIC_VARIANTS:
+        return RBFSACActorMLPCriticPolicy
     if variant in {"rbf_64", "rbf_192"}:
         return RBFActorCriticPolicy
     if variant in {"rbf_actor_mlp_critic_64", "rbf_actor_mlp_critic_192"}:
@@ -129,10 +163,10 @@ def variant_policy_kwargs(
 ) -> dict[str, Any]:
     if variant == "mlp":
         return base_policy_kwargs(config)
-    if variant in {"rbf_64", "rbf_192"}:
+    if variant in RBF_STRICT_VARIANTS:
         # A strict RBF actor and critic only use the final SB3 linear heads.
         return {"net_arch": [], **rbf_policy_kwargs(config, variant)}
-    if variant in {"rbf_actor_mlp_critic_64", "rbf_actor_mlp_critic_192"}:
+    if variant in RBF_ACTOR_MLP_CRITIC_VARIANTS:
         return {**base_policy_kwargs(config), **rbf_policy_kwargs(config, variant)}
     if variant == "ltc_simple":
         ltc = config.ltc
@@ -187,17 +221,39 @@ def feature_extractor_name(variant: Variant) -> str:
 def variant_network_summary(config, variant: Variant) -> dict[str, Any]:
     """Describe the actor/critic parameterization stored in experiment JSON."""
 
-    if variant in {"rbf_64", "rbf_192"}:
+    if variant in RBF_STRICT_VARIANTS:
+        if config.algorithm == "SAC":
+            return {
+                "actor": "GaussianRBF -> squashed Gaussian-policy heads",
+                "critic": "two independent GaussianRBF([state, action]) -> linear Q heads",
+                "target_critic": "Polyak-updated copies of the twin RBF Q critics",
+                "hidden_mlp": False,
+            }
         return {
             "actor": "GaussianRBF -> linear Gaussian-policy head",
             "critic": "GaussianRBF -> linear value head",
             "hidden_mlp": False,
         }
-    if variant in {"rbf_actor_mlp_critic_64", "rbf_actor_mlp_critic_192"}:
+    if variant in RBF_ACTOR_MLP_CRITIC_VARIANTS:
+        if config.algorithm == "SAC":
+            return {
+                "actor": "GaussianRBF -> squashed Gaussian-policy heads",
+                "critic": "two independent SB3 MLP Q(state, action) heads",
+                "target_critic": "Polyak-updated copies of the MLP twin Q critics",
+                "critic_net_arch": list(config.policy_net_arch),
+                "hidden_mlp": True,
+            }
         return {
             "actor": "GaussianRBF -> linear Gaussian-policy head",
             "critic": "MLP -> linear value head",
             "critic_net_arch": list(config.policy_net_arch),
+            "hidden_mlp": True,
+        }
+    if config.algorithm == "SAC":
+        return {
+            "actor": "SB3 MLP -> squashed Gaussian-policy heads",
+            "critic": "two independent SB3 MLP Q(state, action) heads",
+            "target_critic": "Polyak-updated copies of the MLP twin Q critics",
             "hidden_mlp": True,
         }
     return {

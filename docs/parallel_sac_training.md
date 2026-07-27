@@ -274,7 +274,24 @@ conda run -n sac_sb3_demo python main.py --config configs/parallel_smoke.yaml
 smoke 只验证子进程创建、数据收集、梯度更新、评估、checkpoint 和 summary 是否贯通；其
 reward 不能作为研究结果。
 
-## 11. 参考
+## 11. RBF actor / twin-Q 对照
+
+[`configs/sac/rbf_comparison.yaml`](../configs/sac/rbf_comparison.yaml) 将上述八环境 SAC
+口径用于七组 RBF-vs-MLP 对照：MLP、严格 RBF actor+twin-Q 的 64/192/6050 中心，以及
+RBF actor+MLP twin-Q 的 64/192/6255 中心。它保持 500k total transitions、10k warmup、
+10k evaluation、`train_freq=1` 和 `gradient_steps=8`，因此结构而非采样并行度是唯一预期
+变化。
+
+6050 匹配 actor 与 online twin-Q 的实际 optimizer 参数；6255 匹配 actor 参数。target
+critic 是 Polyak 更新副本，不用于匹配。summary 的 `parameter_counts` 分别记录 actor、
+online critic、target critic 与 `optimized_total`，避免误把 target 网络当成额外训练容量。
+完整公式与运行命令见 [`rbf_sac.md`](rbf_sac.md)：
+
+```bash
+CONDA_ENV=sac_sb3_demo ./run_sac_rbf_multiseed.sh
+```
+
+## 12. 参考
 
 - [SB3：Multiprocessing with off-policy algorithms](https://stable-baselines3.readthedocs.io/en/v2.4.1/guide/examples.html#multiprocessing-with-off-policy-algorithms)
 - [SB3：Vectorized Environments](https://stable-baselines3.readthedocs.io/en/v2.7.0/guide/vec_envs.html)

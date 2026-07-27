@@ -94,6 +94,8 @@ output/TensorBoard roots. It is a capacity-and-hardware experiment, while
 - `sac_experiments/lunarlander_common.py`: environment, wrappers, CUDA checks, and evaluation helpers.
 - `sac_experiments/variants.py`: maps variant names to SB3 policy kwargs.
 - `sac_experiments/ltc_features.py`: simple, circuit, and residual LTC feature extractors.
+- `sac_experiments/rbf_policies.py`: shared Gaussian RBF layer plus PPO RBF policies.
+- `sac_experiments/rbf_sac_policies.py`: SAC RBF actor and twin-Q policy classes.
 
 The GIF renderer loads a model first and infers whether it needs a single frame,
 stacked observations, or previous-action history. Rendering therefore stays
@@ -109,16 +111,17 @@ separate from the training entrypoint without needing a second config parser.
 6. `sac_experiments/variants.py`
 7. `sac_experiments/ltc_features.py`
 
-## RBF PPO Extension
+## RBF Policy Extensions
 
 `rbf_64`, `rbf_192`, `rbf_actor_mlp_critic_64`, and
-`rbf_actor_mlp_critic_192` are PPO-only variants. They are mapped in
-`sac_experiments/variants.py` to custom `ActorCriticPolicy` subclasses in
-`sac_experiments/rbf_policies.py`; no second training entrypoint is introduced.
-The RBF variants require `frame_stack: 1`, preserve the normal environment and
-evaluation lifecycle, and record their network structure and parameter count in
-the existing JSON summaries. See [`rbf_ppo.md`](rbf_ppo.md) for the experiment
-rationale and protocol.
+`rbf_actor_mlp_critic_192` select PPO `ActorCriticPolicy` subclasses or SAC
+custom policies through the same variant registry; no second training entrypoint
+is introduced. SAC additionally exposes `sac_rbf_matched` and
+`sac_rbf_actor_mlp_critic_matched`, whose 6050/6255 basis counts match the
+existing SAC optimizer capacity. All RBF variants require `frame_stack: 1`,
+preserve the environment/evaluation lifecycle, and record network and optimizer
+parameter counts in JSON summaries. See [`rbf_ppo.md`](rbf_ppo.md) and
+[`rbf_sac.md`](rbf_sac.md) for the respective protocols.
 
 This mirrors the actual lifecycle: describe the experiment, validate it, train
 the selected variants, and inspect the feature implementation only when needed.

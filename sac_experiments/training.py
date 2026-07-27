@@ -95,7 +95,7 @@ def rbf_config_for_summary(
         return None
 
     rbf = config.rbf
-    return {
+    summary = {
         "num_centers": rbf_num_centers(config, variant),
         "center_init_range": rbf["center_init_range"],
         "initial_bandwidth": rbf["initial_bandwidth"],
@@ -103,6 +103,45 @@ def rbf_config_for_summary(
         "centers": "learnable",
         "bandwidths": "learnable diagonal per-center widths",
         "basis": "exp(-0.5 * sum(((x-c)/sigma)^2))",
+    }
+    if variant == "sac_rbf_matched":
+        summary["capacity_match"] = "SAC actor + online twin-Q optimizer parameters"
+    if variant == "sac_rbf_actor_mlp_critic_matched":
+        summary["capacity_match"] = "SAC actor optimizer parameters"
+    return summary
+
+
+def _module_parameter_count(module: Any) -> int:
+    return sum(parameter.numel() for parameter in module.parameters())
+
+
+def _optimizer_parameter_count(*optimizers: Any) -> int:
+    unique_parameters: dict[int, Any] = {}
+    for optimizer in optimizers:
+        for group in optimizer.param_groups:
+            for parameter in group["params"]:
+                unique_parameters[id(parameter)] = parameter
+    return sum(parameter.numel() for parameter in unique_parameters.values())
+
+
+def model_parameter_counts(model: Any, algorithm: str) -> dict[str, int]:
+    """Record module and optimizer capacity without treating target critics as optimized."""
+
+    policy_total = _module_parameter_count(model.policy)
+    if algorithm != "SAC":
+        return {
+            "policy_total": policy_total,
+            "optimized_total": _optimizer_parameter_count(model.policy.optimizer),
+        }
+    return {
+        "policy_total": policy_total,
+        "actor": _module_parameter_count(model.actor),
+        "online_critic": _module_parameter_count(model.critic),
+        "target_critic": _module_parameter_count(model.critic_target),
+        "optimized_total": _optimizer_parameter_count(
+            model.actor.optimizer,
+            model.critic.optimizer,
+        ),
     }
 
 
@@ -120,7 +159,7 @@ def build_variant_summary(
     training_wall_time_seconds: float,
     sampled_transitions: int,
     policy_class: str,
-    trainable_parameter_count: int,
+    parameter_counts: dict[str, int],
 ) -> dict[str, Any]:
     learning_rate = {
         "initial": config.learning_rate,
@@ -176,7 +215,10 @@ def build_variant_summary(
             "features_extractor": feature_extractor_name(variant),
         },
         "network": variant_network_summary(config, variant),
-        "trainable_parameter_count": trainable_parameter_count,
+        # Preserved for existing analysis scripts. For SAC it includes the target
+        # critic, so use parameter_counts.optimized_total for capacity matching.
+        "trainable_parameter_count": parameter_counts["policy_total"],
+        "parameter_counts": parameter_counts,
         "ltc": ltc_config_for_summary(config, variant),
         "rbf": rbf_config_for_summary(config, variant),
         "eval_episodes": config.eval_episodes,
@@ -336,9 +378,7 @@ def train_variant(
             training_wall_time_seconds=training_wall_time_seconds,
             sampled_transitions=model.num_timesteps,
             policy_class=model.policy.__class__.__name__,
-            trainable_parameter_count=sum(
-                parameter.numel() for parameter in model.policy.parameters() if parameter.requires_grad
-            ),
+            parameter_counts=model_parameter_counts(model, config.algorithm),
         )
         summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
         return summary

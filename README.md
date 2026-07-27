@@ -12,6 +12,8 @@
 | [`docs/architecture.md`](docs/architecture.md) | 模块职责、配置契约与推荐阅读路径。 |
 | [`docs/parallel_sac_training.md`](docs/parallel_sac_training.md) | 并行采样架构、LaTeX 计数公式、replay buffer、seed、callback 与公平对比协议。 |
 | [`docs/parallel_ppo_training.md`](docs/parallel_ppo_training.md) | 多环境 PPO 强基线、rollout/minibatch 计数、参数依据与运行边界。 |
+| [`docs/rbf_ppo.md`](docs/rbf_ppo.md) | RBF-PPO 的结构、容量扫描与多 seed 运行说明。 |
+| [`docs/rbf_sac.md`](docs/rbf_sac.md) | RBF-SAC 的 twin-Q 结构、容量匹配与多 seed 对照协议。 |
 | [`docs/research_roadmap.md`](docs/research_roadmap.md) | LTC 设计说明与研究路线。 |
 | [`docs/sac_implementations.md`](docs/sac_implementations.md) | SAC 框架选型笔记。 |
 | [`docs/windows_migration.md`](docs/windows_migration.md) | Windows 复现实验说明。 |
@@ -168,6 +170,30 @@ conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_rbf.yaml
 CONDA_ENV=sac_sb3_demo ./run_ppo_rbf_multiseed.sh
 ```
 
+## RBF SAC 对照
+
+[`configs/sac/rbf_comparison.yaml`](configs/sac/rbf_comparison.yaml) 新增七组同预算 SAC
+对照：MLP、严格 RBF actor + twin-Q critic 的 64/192/6050 基函数，以及 RBF actor + MLP
+twin-Q critic 的 64/192/6255 基函数。正式口径沿用 SAC 强基线：单帧、8 个同步环境、
+500k transitions、10k warmup/evaluation、`[400,300]` MLP 和 `gradient_steps: 8`。
+
+6050 严格 RBF 精确匹配 MLP actor + online twin-Q 的优化参数量；6255 actor-only RBF
+精确匹配 MLP actor。target critic 是 Polyak 更新副本，不作为优化参数匹配目标。完整公式、
+结果边界与报告字段见 [`docs/rbf_sac.md`](docs/rbf_sac.md)。
+
+本机只运行七组短 smoke：
+
+```bash
+MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
+conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_rbf.yaml
+```
+
+正式多 seed 训练在目标主机串行运行：
+
+```bash
+CONDA_ENV=sac_sb3_demo ./run_sac_rbf_multiseed.sh
+```
+
 `main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac`、`ppo` 和 `ltc` 分组。训练器只把当前算法对应的参数传给 SB3。未知字段会直接报错，避免拼写错误被静默忽略。
 
 训练器会按 `experiment.variants` 的顺序训练各组，而不是自行并行。若要并行启动多个单 variant 进程，必须为每个进程设置不同的 `output.run_tag`，避免模型和 TensorBoard 文件互相覆盖。TensorBoard run 名保持扁平：
@@ -205,7 +231,9 @@ conda run -n sac_sb3_demo python -m py_compile \
   sac_experiments/training.py \
   sac_experiments/lunarlander_common.py \
   sac_experiments/variants.py \
-  sac_experiments/ltc_features.py
+  sac_experiments/ltc_features.py \
+  sac_experiments/rbf_policies.py \
+  sac_experiments/rbf_sac_policies.py
 ```
 
 ```bash
