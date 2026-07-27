@@ -391,7 +391,7 @@ conda run -n sac_sb3_demo python render_sac_lunarlander_gif.py \
 ### 新增实验基础设施 TODO
 
 - [ ] 完成并行环境对比实验：可复现 `VecEnv`、随机种子、callback / checkpoint 频率和 summary 口径已经实现；下一步比较 `n_envs=1/2/4` 的 sample throughput、wall-clock、显存和最终 eval。
-- [ ] 加入 SAC / PPO 统一的超参数优化与调度：采用随机/Sobol sampler + ASHA/Hyperband，按完整 SAC transition 或 PPO rollout 做多保真筛选；MLP、LTC、RBF 获得相同调参预算，晋级候选必须多 seed 复验。具体 TODO 见 [docs/research_roadmap.md](docs/research_roadmap.md)。
+- [ ] 加入 SAC / PPO 统一的超参数优化与调度：采用随机/Sobol sampler/TPE + ASHA/Hyperband，按完整 SAC transition 或 PPO rollout 做多保真筛选；MLP、LTC、RBF 获得相同调参预算，晋级候选必须多 seed 复验。具体 TODO 见 [docs/research_roadmap.md](docs/research_roadmap.md)。
 
 ### P0: 先把当前 fixed-window 对照实验做扎实
 
