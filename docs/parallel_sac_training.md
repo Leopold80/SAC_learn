@@ -12,8 +12,8 @@ target critic、replay buffer 和梯度更新仍由一个 SAC learner 管理，�
 - [`sac_experiments/training.py`](../sac_experiments/training.py)：训练、评估、callback
   频率换算和 summary。
 - [`sac_experiments/config.py`](../sac_experiments/config.py)：`n_envs` 及整除约束。
-- [`configs/parallel_baseline.yaml`](../configs/parallel_baseline.yaml)：正式八环境基线。
-- [`configs/parallel_smoke.yaml`](../configs/parallel_smoke.yaml)：双环境短流程检查。
+- [`configs/sac/parallel/parallel_8env.yaml`](../configs/sac/parallel/parallel_8env.yaml)：正式八环境基线。
+- [`configs/smoke/sac_parallel.yaml`](../configs/smoke/sac_parallel.yaml)：双环境短流程检查。
 
 ## 1. 执行结构
 
@@ -85,8 +85,8 @@ $$
 
 | 配置 | $n$ | $f$ | $g$ | $\rho_{\mathrm{update}}$ |
 |---|---:|---:|---:|---:|
-| 单环境 `baseline.yaml` | 1 | 1 | 1 | 1 |
-| 八环境 `parallel_baseline.yaml` | 8 | 1 | 8 | 1 |
+| 单环境 `sac/baseline.yaml` | 1 | 1 | 1 | 1 |
+| 八环境 `sac/parallel/parallel_8env.yaml` | 8 | 1 | 8 | 1 |
 
 这里选择 8 个环境，而不是照搬 PPO 的 16 个环境。PPO 的 16 个 worker 用来构造一整批
 on-policy rollout；SAC 每次 VecEnv step 后还要串行执行 $g=n$ 次 actor/双 critic 更新。
@@ -268,7 +268,7 @@ SEED_LIST="42 123 456 789 2026" ./run_all_experiments.sh
 双环境 smoke 仍用于流程检查：
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/parallel_smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_parallel.yaml
 ```
 
 smoke 只验证子进程创建、数据收集、梯度更新、评估、checkpoint 和 summary 是否贯通；其

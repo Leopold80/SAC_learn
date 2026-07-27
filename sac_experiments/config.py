@@ -35,7 +35,9 @@ from sac_experiments.variants import (
 )
 
 
-DEFAULT_CONFIG_PATH = Path("configs/lunarlander.yaml")
+# The default remains the full SAC + LTC comparison; the directory now makes
+# its algorithm and experiment purpose explicit.
+DEFAULT_CONFIG_PATH = Path("configs/sac/ltc_comparison.yaml")
 SUPPORTED_ALGORITHMS = ("SAC", "PPO")
 SUPPORTED_POLICY = "MlpPolicy"
 

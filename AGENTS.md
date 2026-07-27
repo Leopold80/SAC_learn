@@ -7,7 +7,7 @@ This repository contains Stable-Baselines3 SAC/PPO + LTC experiments for
 
 - `main.py`: the only training entrypoint; all experiment choices come from YAML.
 - `render_sac_lunarlander_gif.py`: renders a trained LunarLander policy.
-- `configs/`: full comparison, single-frame baseline, parallel-environment, and smoke YAML configs.
+- `configs/`: YAML configs grouped into `sac/`, `ppo/`, and `smoke/`; SAC parallel studies are under `sac/parallel/`.
 - `sac_experiments/`: config validation, unified training, environment helpers, variants, and LTC feature extractors.
 - `requirements-sac-demo.txt`: Python dependencies for the isolated demo environment.
 - `docs/`: architecture, parallel SAC/PPO design, research roadmap, Windows migration guide, and algorithm notes.
@@ -39,10 +39,10 @@ Run examples:
 
 ```bash
 conda run -n sac_sb3_demo python main.py
-conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
-conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_large.yaml
+conda run -n sac_sb3_demo python main.py --config configs/sac/baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/sac/parallel/parallel_8env.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel_large.yaml
 ```
 
 For GPU training from this agent environment, use elevated execution because the sandbox may hide CUDA. Also use elevated execution for `SubprocVecEnv` runs when the macOS sandbox blocks multiprocessing with `PermissionError: Operation not permitted`.
@@ -56,16 +56,16 @@ Use Python 3.12-compatible code, 4-space indentation, type hints where helpful, 
 There is no formal test suite yet. Validate changes with `py_compile` and the relevant short smoke run before long training:
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
-conda run -n sac_sb3_demo python main.py --config configs/parallel_smoke.yaml
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_ltc.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_parallel.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_parallel.yaml
 ```
 
-Run `parallel_smoke.yaml` when changing the SAC vector path and `ppo_parallel_smoke.yaml` when changing PPO rollout, minibatch, model dispatch, worker construction, callback frequencies, seeding, or environment cleanup. Do not treat smoke-run rewards as research results.
+Run `smoke/sac_parallel.yaml` when changing the SAC vector path and `smoke/ppo_parallel.yaml` when changing PPO rollout, minibatch, model dispatch, worker construction, callback frequencies, seeding, or environment cleanup. Do not treat smoke-run rewards as research results.
 
 `evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. The formal SAC baseline uses eight environments with `train_freq: 1` and `gradient_steps: 8`, preserving an approximately 1:1 gradient-update/transition ratio without copying PPO's more aggressive 16-worker rollout setup.
 
-For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. `ppo_parallel.yaml` follows the SB3 2.7 RL-Zoo LunarLanderContinuous recipe with `[64, 64]`, batch size 64, and CPU execution. `ppo_parallel_large.yaml` is the separate CUDA experiment with `[400, 300]` actor/value towers and batch size 256. Treat 16 workers as a strong diversity-oriented baseline, not a guarantee of maximum wall-clock throughput.
+For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. `ppo/parallel.yaml` follows the SB3 2.7 RL-Zoo LunarLanderContinuous recipe with `[64, 64]`, batch size 64, and CPU execution. `ppo/parallel_large.yaml` is the separate CUDA experiment with `[400, 300]` actor/value towers and batch size 256. Treat 16 workers as a strong diversity-oriented baseline, not a guarantee of maximum wall-clock throughput.
 
 ## Commit & Pull Request Guidelines
 

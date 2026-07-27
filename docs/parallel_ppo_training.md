@@ -9,8 +9,8 @@ variant 注册表、评估回调和输出目录约定。差异只保留在算法
 - PPO 先收满一批同步 rollout，再对这批 on-policy 数据做多轮 minibatch 更新；
 - 多环境只并行采集轨迹，仍然只有一个 PPO learner 和一套 policy/value 网络。
 
-正式配置是 [`configs/ppo_parallel.yaml`](../configs/ppo_parallel.yaml)，快速管线检查是
-[`configs/ppo_parallel_smoke.yaml`](../configs/ppo_parallel_smoke.yaml)。
+正式配置是 [`configs/ppo/parallel.yaml`](../configs/ppo/parallel.yaml)，快速管线检查是
+[`configs/smoke/ppo_parallel.yaml`](../configs/smoke/ppo_parallel.yaml)。
 
 ## 2. 为什么选择 16 个环境
 
@@ -37,9 +37,9 @@ ppo:
 变成纯 wall-clock 吞吐，应另行比较 `n_envs=4/8/16`；不能预设进程越多一定越快。
 
 SB3 对小型 MLP PPO 会优先建议 CPU，因为小型 actor/value 网络通常无法有效利用 GPU，
-环境采样和进程通信反而是主要成本。因此 `ppo_parallel.yaml` 使用 `device: cpu`。
+环境采样和进程通信反而是主要成本。因此 `configs/ppo/parallel.yaml` 使用 `device: cpu`。
 
-另设 [`configs/ppo_parallel_large.yaml`](../configs/ppo_parallel_large.yaml) 作为 CUDA
+另设 [`configs/ppo/parallel_large.yaml`](../configs/ppo/parallel_large.yaml) 作为 CUDA
 容量对照。它保留相同的16环境、rollout、GAE和epoch设置，只把独立actor/value towers
 扩大到 `[400,300]`，并把 `batch_size` 扩大到256。该配置使用 `device: cuda` 和
 `allow_cpu: false`，CUDA不可用时直接失败；它不是RL-Zoo recipe的原样复现。
@@ -124,14 +124,14 @@ worker seed 为 `training.seed + worker_index`；评估环境保持独立，使�
 正式训练：
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel.yaml
 ```
 
 多进程 smoke：
 
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_parallel.yaml
 ```
 
 smoke 只验证两进程采样、rollout、更新、评估、保存、重新加载与清理是否贯通；它的奖励

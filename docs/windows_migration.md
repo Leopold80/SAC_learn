@@ -71,7 +71,7 @@ python -m py_compile `
 Check YAML config loading:
 
 ```powershell
-python -c "from pathlib import Path; from sac_experiments.config import load_config; c=load_config(Path('configs/lunarlander.yaml')); print(c.variants)"
+python -c "from pathlib import Path; from sac_experiments.config import load_config; c=load_config(Path('configs/sac/ltc_comparison.yaml')); print(c.variants)"
 ```
 
 Expected:
@@ -98,33 +98,33 @@ Expected:
 Smoke test:
 
 ```powershell
-python main.py --config configs/smoke.yaml
+python main.py --config configs/smoke/sac_ltc.yaml
 ```
 
 PPO multi-environment smoke test:
 
 ```powershell
-python main.py --config configs/ppo_parallel_smoke.yaml
+python main.py --config configs/smoke/ppo_parallel.yaml
 ```
 
 Full sequential run:
 
 ```powershell
-python main.py --config configs/lunarlander.yaml
+python main.py --config configs/sac/ltc_comparison.yaml
 ```
 
 Single-frame baseline:
 
 ```powershell
-python main.py --config configs/baseline.yaml
+python main.py --config configs/sac/baseline.yaml
 ```
 
 Parallel SAC and PPO baselines:
 
 ```powershell
-python main.py --config configs/parallel_baseline.yaml
-python main.py --config configs/ppo_parallel.yaml
-python main.py --config configs/ppo_parallel_large.yaml
+python main.py --config configs/sac/parallel/parallel_8env.yaml
+python main.py --config configs/ppo/parallel.yaml
+python main.py --config configs/ppo/parallel_large.yaml
 ```
 
 The configured variants run sequentially, while each configured VecEnv may use
@@ -182,9 +182,9 @@ python render_sac_lunarlander_gif.py `
 
 ## GPU Notes
 
-The code defaults to `training.device: cuda` in `configs/lunarlander.yaml`. If CUDA is
+The code defaults to `training.device: cuda` in `configs/sac/ltc_comparison.yaml`. If CUDA is
 not visible, the full run should fail loudly instead of silently using CPU. For
-debugging only, use `configs/smoke.yaml`, where CPU fallback is allowed.
+debugging only, use `configs/smoke/sac_ltc.yaml`, where CPU fallback is allowed.
 
 On Windows, verify GPU use with:
 

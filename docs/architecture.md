@@ -14,11 +14,11 @@ conda run -n sac_sb3_demo python main.py
 Choose another experiment only by changing the config path:
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
-conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_large.yaml
-conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/sac/baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/sac/parallel/parallel_8env.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel_large.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_ltc.yaml
 ```
 
 The call path is intentionally short:
@@ -57,11 +57,17 @@ Before training, both resolved output paths must be empty or absent. Reusing a
 completed path fails fast instead of overwriting models; use a unique,
 single-segment `output.run_tag` for every additional run.
 
-`configs/baseline.yaml` selects only `mlp` and sets `frame_stack: 1`. It uses the
+Configs are grouped by purpose: `configs/sac/` for formal SAC experiments,
+`configs/sac/parallel/` for SAC worker-count or batching studies,
+`configs/ppo/` for formal PPO experiments, and `configs/smoke/` for short
+pipeline checks. This directory structure is only for discovery; every YAML
+still follows the same runtime schema.
+
+`configs/sac/baseline.yaml` selects only `mlp` and sets `frame_stack: 1`. It uses the
 same code as the stacked comparison, so there is no second baseline training
 loop to drift out of sync.
 
-`configs/parallel_baseline.yaml` uses eight subprocess training environments.
+`configs/sac/parallel/parallel_8env.yaml` uses eight subprocess training environments.
 Worker seeds are `training.seed + worker_index`. Evaluation remains a separate
 single environment using `training.seed + n_envs`, and evaluation/checkpoint
 frequencies continue to mean total collected transitions rather than
@@ -74,7 +80,7 @@ For the precise VecEnv step semantics, replay-buffer layout, callback-frequency
 equations, seed policy, limitations, and comparison protocol, see
 [`parallel_sac_training.md`](parallel_sac_training.md).
 
-`configs/ppo_parallel.yaml` uses the same environment and callback lifecycle but
+`configs/ppo/parallel.yaml` uses the same environment and callback lifecycle but
 switches the model registry to PPO. Sixteen workers each collect 1,024 steps,
 so every rollout contains 16,384 transitions. Configuration validation requires
 the total timesteps to contain an exact number of complete rollouts and requires
@@ -82,10 +88,10 @@ the rollout size to be divisible by the minibatch size. See
 [`parallel_ppo_training.md`](parallel_ppo_training.md) for the parameter basis,
 rollout equations, and machine-dependent throughput caveat.
 
-`configs/ppo_parallel_large.yaml` keeps the same rollout design but uses separate
+`configs/ppo/parallel_large.yaml` keeps the same rollout design but uses separate
 `[400, 300]` actor/value towers, batch size 256, mandatory CUDA, and distinct
 output/TensorBoard roots. It is a capacity-and-hardware experiment, while
-`ppo_parallel.yaml` remains the CPU RL-Zoo-style strong baseline.
+`configs/ppo/parallel.yaml` remains the CPU RL-Zoo-style strong baseline.
 
 ## Main Modules
 
@@ -103,8 +109,8 @@ separate from the training entrypoint without needing a second config parser.
 
 ## Reading Order
 
-1. `configs/lunarlander.yaml`
-2. `configs/ppo_parallel.yaml` when studying PPO
+1. `configs/sac/ltc_comparison.yaml`
+2. `configs/sac/rbf_comparison.yaml` when studying RBF-SAC
 3. `main.py`
 4. `sac_experiments/config.py`
 5. `sac_experiments/training.py`

@@ -8,7 +8,7 @@
 |---|---|
 | [`main.py`](main.py) | 唯一训练入口；读取 YAML 后调用统一训练流程。 |
 | [`render_sac_lunarlander_gif.py`](render_sac_lunarlander_gif.py) | 根据保存模型的 observation space 自动匹配环境并输出 GIF。 |
-| `configs/` | 正式、单帧 baseline、并行采样与 smoke YAML 配置。 |
+| `configs/` | 按 `sac/`、`ppo/` 和 `smoke/` 分类的 YAML 配置。 |
 | [`docs/architecture.md`](docs/architecture.md) | 模块职责、配置契约与推荐阅读路径。 |
 | [`docs/parallel_sac_training.md`](docs/parallel_sac_training.md) | 并行采样架构、LaTeX 计数公式、replay buffer、seed、callback 与公平对比协议。 |
 | [`docs/parallel_ppo_training.md`](docs/parallel_ppo_training.md) | 多环境 PPO 强基线、rollout/minibatch 计数、参数依据与运行边界。 |
@@ -17,6 +17,11 @@
 | [`docs/research_roadmap.md`](docs/research_roadmap.md) | LTC 设计说明与研究路线。 |
 | [`docs/sac_implementations.md`](docs/sac_implementations.md) | SAC 框架选型笔记。 |
 | [`docs/windows_migration.md`](docs/windows_migration.md) | Windows 复现实验说明。 |
+
+配置目录按“算法 + 用途”组织：`configs/sac/` 存放 SAC 正式实验，
+`configs/sac/parallel/` 存放 SAC 多环境消融，`configs/ppo/` 存放 PPO 正式实验，
+`configs/smoke/` 只存放短流程检查。默认配置仍是
+[`configs/sac/ltc_comparison.yaml`](configs/sac/ltc_comparison.yaml)。
 
 ## 研究目标
 
@@ -107,19 +112,19 @@ conda run -n sac_sb3_demo python main.py
 
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python main.py --config configs/smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_ltc.yaml
 ```
 
 单帧 8 维 observation baseline：
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/sac/baseline.yaml
 ```
 
 八进程并行采样 baseline：
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
+conda run -n sac_sb3_demo python main.py --config configs/sac/parallel/parallel_8env.yaml
 ```
 
 并行配置使用 `SubprocVecEnv`，每个 worker 使用不同 seed；评估仍是独立单环境。
@@ -131,7 +136,7 @@ conda run -n sac_sb3_demo python main.py --config configs/parallel_baseline.yaml
 十六进程 PPO 强基线：
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel.yaml
 ```
 
 PPO 配置使用 16 个同步环境，每个 worker 每轮采集 1024 步，形成 16,384 条
@@ -142,7 +147,7 @@ MLP PPO 默认使用 CPU；16 环境强调轨迹多样性，不保证在每台�
 CUDA 大网络 PPO 对照：
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_large.yaml
+conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel_large.yaml
 ```
 
 该配置保留相同 rollout/GAE 设置，将独立的 actor/value towers 扩大到 `[400,300]`，
@@ -239,7 +244,7 @@ conda run -n sac_sb3_demo python -m py_compile \
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
 conda run -n sac_sb3_demo python -c \
-  "from pathlib import Path; from sac_experiments.config import load_config; c=load_config(Path('configs/lunarlander.yaml')); print(c.variants)"
+  "from pathlib import Path; from sac_experiments.config import load_config; c=load_config(Path('configs/sac/ltc_comparison.yaml')); print(c.variants)"
 ```
 
 期望：
@@ -252,7 +257,7 @@ PPO 多环境 smoke：
 
 ```bash
 MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python main.py --config configs/ppo_parallel_smoke.yaml
+conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_parallel.yaml
 ```
 
 ### Observation shape 检查

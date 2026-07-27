@@ -1,4 +1,4 @@
-# CUDA-oriented large-network PPO experiment derived from ppo_parallel.yaml.
+# CUDA-oriented large-network PPO experiment derived from parallel.yaml.
 
 experiment:
   environment: LunarLanderContinuous-v3
