@@ -1,459 +1,140 @@
-# LunarLander SAC / PPO + LTC 控制实验记录
+# LunarLander SAC / PPO Reinforcement Learning Experiments
 
-这个仓库用于验证 Stable-Baselines3 SAC 与多环境 PPO 在 `LunarLanderContinuous-v3` 上的训练流程，并进一步探索把 LTC（Liquid Time-constant）时序特征引入 policy / value 模型的效果。为保持实验边界清晰，仓库只保留 LunarLander 环境。
+本仓库用于研究连续控制强化学习中的算法基线与结构改进。
 
-## 代码入口与文档
+当前实验环境：
 
-| 入口 / 文档 | 用途 |
+- `LunarLanderContinuous-v3`
+- Stable-Baselines3 SAC
+- Stable-Baselines3 PPO
+
+研究重点包括：
+
+- SAC / PPO 可复现实验流程；
+- 并行环境采样；
+- RBF 函数逼近；
+- LTC 时序特征提取。
+
+## 快速入口
+
+训练入口只有一个：
+
+```bash
+python main.py --config <yaml>
+```
+
+`main.py` 根据 YAML 配置创建环境、选择算法、训练 variant 并保存实验摘要。
+
+主要目录：
+
+```text
+configs/
+    sac/        SAC正式实验
+    ppo/        PPO正式实验
+    smoke/      快速流程检查
+
+sac_experiments/
+    config.py          YAML解析与约束检查
+    training.py        统一训练流程
+    variants.py        实验variant注册
+    ltc_features.py    LTC feature extractor
+    rbf_*.py           RBF策略实现
+
+docs/
+    architecture.md
+    parallel_sac_training.md
+    parallel_ppo_training.md
+    rbf_sac.md
+    rbf_ppo.md
+    ltc.md
+    research_roadmap.md
+```
+
+完整文档导航见：
+
+[`docs/documentation_map.md`](docs/documentation_map.md)
+
+## 当前实验矩阵
+
+### SAC
+
+基础结构：
+
+| Variant | 说明 |
 |---|---|
-| [`main.py`](main.py) | 唯一训练入口；读取 YAML 后调用统一训练流程。 |
-| [`render_sac_lunarlander_gif.py`](render_sac_lunarlander_gif.py) | 根据保存模型的 observation space 自动匹配环境并输出 GIF。 |
-| `configs/` | 按 `sac/`、`ppo/` 和 `smoke/` 分类的 YAML 配置。 |
-| [`docs/architecture.md`](docs/architecture.md) | 模块职责、配置契约与推荐阅读路径。 |
-| [`docs/parallel_sac_training.md`](docs/parallel_sac_training.md) | 并行采样架构、LaTeX 计数公式、replay buffer、seed、callback 与公平对比协议。 |
-| [`docs/parallel_ppo_training.md`](docs/parallel_ppo_training.md) | 多环境 PPO 强基线、rollout/minibatch 计数、参数依据与运行边界。 |
-| [`docs/rbf_ppo.md`](docs/rbf_ppo.md) | RBF-PPO 的结构、容量扫描与多 seed 运行说明。 |
-| [`docs/rbf_sac.md`](docs/rbf_sac.md) | RBF-SAC 的 twin-Q 结构、容量匹配与多 seed 对照协议。 |
-| [`docs/research_roadmap.md`](docs/research_roadmap.md) | LTC 设计说明与研究路线。 |
-| [`docs/sac_implementations.md`](docs/sac_implementations.md) | SAC 框架选型笔记。 |
-| [`docs/windows_migration.md`](docs/windows_migration.md) | Windows 复现实验说明。 |
+| `mlp` | 标准 MLP SAC baseline |
+| `ltc` | Circuit LTC temporal feature extractor |
+| `ltc_residual` | 原始 observation + LTC feature fusion |
+| `ltc_residual_action` | LTC 分支额外使用 action history |
 
-配置目录按“算法 + 用途”组织：`configs/sac/` 存放 SAC 正式实验，
-`configs/sac/parallel/` 存放 SAC 多环境消融，`configs/ppo/` 存放 PPO 正式实验，
-`configs/smoke/` 只存放短流程检查。默认配置仍是
-[`configs/sac/ltc_comparison.yaml`](configs/sac/ltc_comparison.yaml)。
+RBF-SAC：
 
-## 研究目标
-
-核心问题不是“能不能跑通 SAC”，而是：
-
-- 标准 stacked-observation MLP SAC 在 LunarLander 上能达到什么水平；
-- 公式版 circuit LTC 是否能提供更有用的短时序特征；
-- raw observation residual / concat 是否能缓解 LTC 过度压缩 Markov 信息的问题；
-- 过去动作历史是否能帮助 LTC 更好地建模控制输入和状态变化之间的关系；
-- 后续是否值得进入 full recurrent LTC-SAC。
-
-当前不使用 `ncps`，也不引入 NCP sparse wiring。它们后续可以作为权威参考或结构消融，但主线先保持自实现、可解释、可控。
-
-## 当前对照分支
-
-默认 LunarLander 实验比较四组：
-
-| Variant | 思想 |
+| Variant | 说明 |
 |---|---|
-| `mlp` | 4 帧 stacked observation + SB3 默认 FlattenExtractor + MLP。作为强基线。 |
-| `ltc` | 4 帧 observation 输入公式版 circuit LTC，再交给 SAC actor / critic。 |
-| `ltc_residual` | raw stacked observation projection 与 circuit LTC feature concat，再 fusion。 |
-| `ltc_residual_action` | 在 `ltc_residual` 基础上，让 LTC 分支额外看到 previous action history。raw residual 分支仍只看原始 observation。 |
+| `rbf_64` / `rbf_192` | RBF actor + critic 容量扫描 |
+| `sac_rbf_matched` | 与 SAC optimizer 参数量匹配 |
+| `sac_rbf_actor_mlp_critic_matched` | 仅 actor 参数量匹配 |
 
-`ltc_simple` 是 legacy 分支，用于复查早期简化 LTC 结果，不再作为默认主线。
+### PPO
 
-## LTC 形式
+支持：
 
-公式版 circuit LTC 对应的核心形式是：
+- 多环境 rollout；
+- GAE；
+- RBF actor/value 对照。
 
-```text
-dx_i/dt = -x_i / tau_i + sum_j f_ij(x_j, u; theta) * (A_ij - x_i)
-```
+## 运行示例
 
-当前实现中：
-
-- `tau_i = softplus(raw_tau_i) + tau_min`
-- `A_ij` 是可学习 reversal potential
-- `f_ij` 是由当前 liquid state 和输入 observation 参数化的 sigmoid gate
-- 使用 semi-implicit Euler update，提高数值稳定性
-- 默认 `hidden_dim=128`、`features_dim=256`、`ode_unfolds=4`
-
-`ltc_residual_action` 的动作历史设计是有意约束的：动作历史只进入 LTC encoder，不进入 raw residual branch。这样可以更清楚地观察“动作历史是否改善时序建模”，而不是让所有分支同时获得额外信息。
-
-## SAC / SB3 Trick
-
-LunarLander 主实验沿用 SB3 SAC 与 RL-Zoo 风格设置：
-
-- `learning_rate = linear_schedule(7.3e-4)`
-- `net_arch = [400, 300]`
-- `buffer_size = 1_000_000`
-- `batch_size = 256`
-- `learning_starts = 10_000`
-- `tau = 0.01`
-- `gamma = 0.99`
-- `ent_coef = "auto"`
-- train / eval 环境分离
-- deterministic evaluation
-- `EvalCallback` 保存 best model
-- `CheckpointCallback` 保存阶段 checkpoint
-- TensorBoard logging
-- final model 与 best model 分开保存
-- JSON summary 记录可复查结果
-
-刻意不启用：
-
-- `gSDE`：先保持 SAC 默认随机策略与熵正则。
-- `VecNormalize`：LunarLander 当前不先加入 normalization，减少变量。
-- 额外 action noise：SAC 本身是 stochastic policy。
-- GUI render：训练和评估默认适配 SSH / 服务器环境。
-
-## 运行方式
-
-使用隔离环境，避免污染 `cybernetic_env`：
+SAC baseline：
 
 ```bash
-conda create -n sac_sb3_demo --clone cybernetic_env
-conda run -n sac_sb3_demo python -m pip install -r requirements-sac-demo.txt
+python main.py --config configs/sac/baseline.yaml
 ```
 
-默认正式对比：
+SAC + LTC：
 
 ```bash
-conda run -n sac_sb3_demo python main.py
+python main.py --config configs/sac/ltc_comparison.yaml
 ```
 
-快速检查：
+并行 SAC：
 
 ```bash
-MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_ltc.yaml
+python main.py --config configs/sac/parallel/parallel_8env.yaml
 ```
 
-单帧 8 维 observation baseline：
+并行 PPO：
 
 ```bash
-conda run -n sac_sb3_demo python main.py --config configs/sac/baseline.yaml
+python main.py --config configs/ppo/parallel.yaml
 ```
 
-八进程并行采样 baseline：
+## 实验记录原则
 
-```bash
-conda run -n sac_sb3_demo python main.py --config configs/sac/parallel/parallel_8env.yaml
-```
+训练结果保存：
 
-并行配置使用 `SubprocVecEnv`，每个 worker 使用不同 seed；评估仍是独立单环境。
-`evaluation.frequency` 继续表示总 transition 数。八环境配置同步把
-`gradient_steps` 设为 8，以维持单环境 baseline 约 1:1 的更新/样本比例。这里选择
-8 个 worker 作为采样多样性、进程通信和 learner 计算之间的折中；没有照搬 PPO 的
-16 环境，因为 SAC 还需要在每轮采样后串行完成对应数量的 actor/双 critic 更新。
+- `eval_summary.json`
+- `experiment_summary.json`
+- evaluation curve
+- TensorBoard logs
+- GIF visualization
 
-十六进程 PPO 强基线：
+模型权重和 checkpoint 不作为仓库主要同步内容。
 
-```bash
-conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel.yaml
-```
+评价不只看最高 reward，同时记录：
 
-PPO 配置使用 16 个同步环境，每个 worker 每轮采集 1024 步，形成 16,384 条
-transition 的完整 rollout。`batch_size=64`、`n_epochs=4`、`gamma=0.999` 和
-`gae_lambda=0.98` 来自 SB3 2.7 对应 RL-Zoo 收录的 LunarLanderContinuous 配置。
-MLP PPO 默认使用 CPU；16 环境强调轨迹多样性，不保证在每台机器上都有最高吞吐率。
+- best evaluation reward；
+- final evaluation reward；
+- 多 seed 稳定性；
+- 参数量；
+- wall-clock time；
+- sample throughput。
 
-CUDA 大网络 PPO 对照：
+## 说明
 
-```bash
-conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel_large.yaml
-```
+LTC、RBF 等结构均作为 feature / policy approximation 改进进行研究，不改变 SAC/PPO 的核心优化过程。
 
-该配置保留相同 rollout/GAE 设置，将独立的 actor/value towers 扩大到 `[400,300]`，
-并使用 `batch_size=256` 和强制 CUDA。它有独立的 outputs/runs 目录，不会与 CPU
-强基线混合。
+它们的有效性需要通过统一预算、多 seed 实验验证。
 
-## RBF PPO 对照
-
-[`configs/ppo/rbf_comparison.yaml`](configs/ppo/rbf_comparison.yaml) 新增五组同预算 PPO
-对照：MLP、完整 RBF actor-critic 的 64/192 基函数，以及 RBF actor + MLP critic 的
-64/192 基函数。它受 RBF 自适应控制的函数逼近思想启发，但仍是 PPO 的函数逼近实验，
-不等价于反步控制律或稳定性证明。结构、公式、初始化和结果解释边界见
-[`docs/rbf_ppo.md`](docs/rbf_ppo.md)。
-
-本机仅作短流程检查：
-
-```bash
-MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_rbf.yaml
-```
-
-正式多 seed 训练在 macOS 或带 NVIDIA 的 Ubuntu 主机运行：
-
-```bash
-CONDA_ENV=sac_sb3_demo ./run_ppo_rbf_multiseed.sh
-```
-
-## RBF SAC 对照
-
-[`configs/sac/rbf_comparison.yaml`](configs/sac/rbf_comparison.yaml) 新增七组同预算 SAC
-对照：MLP、严格 RBF actor + twin-Q critic 的 64/192/6050 基函数，以及 RBF actor + MLP
-twin-Q critic 的 64/192/6255 基函数。正式口径沿用 SAC 强基线：单帧、8 个同步环境、
-500k transitions、10k warmup/evaluation、`[400,300]` MLP 和 `gradient_steps: 8`。
-
-6050 严格 RBF 精确匹配 MLP actor + online twin-Q 的优化参数量；6255 actor-only RBF
-精确匹配 MLP actor。target critic 是 Polyak 更新副本，不作为优化参数匹配目标。完整公式、
-结果边界与报告字段见 [`docs/rbf_sac.md`](docs/rbf_sac.md)。
-
-本机只运行七组短 smoke：
-
-```bash
-MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_rbf.yaml
-```
-
-正式多 seed 训练在目标主机串行运行：
-
-```bash
-CONDA_ENV=sac_sb3_demo ./run_sac_rbf_multiseed.sh
-```
-
-`main.py` 只接受 `--config`；环境、算法、variant、训练参数、评估频率和输出路径全部写在 YAML 中。配置按 `experiment`、`environment`、`training`、`evaluation`、`output`、`sac`、`ppo` 和 `ltc` 分组。训练器只把当前算法对应的参数传给 SB3。未知字段会直接报错，避免拼写错误被静默忽略。
-
-训练器会按 `experiment.variants` 的顺序训练各组，而不是自行并行。若要并行启动多个单 variant 进程，必须为每个进程设置不同的 `output.run_tag`，避免模型和 TensorBoard 文件互相覆盖。TensorBoard run 名保持扁平：
-
-```text
-mlp_1
-ltc_1
-ltc_res_1
-ltc_act_1
-```
-
-`output.run_tag: null` 会把首次运行直接写入 `output.directory` 与 `output.tensorboard_log`。训练器拒绝写入已有内容的运行目录，防止覆盖模型和评估结果；再次运行、正式实验和 multi-seed 实验必须设置新的单段安全 tag（字母、数字、点、下划线或连字符）。
-
-SSH 端口转发：
-
-```bash
-ssh -L 6009:127.0.0.1:6009 <user>@<server>
-```
-
-浏览器打开：
-
-```text
-http://127.0.0.1:6009
-```
-
-## 验证方式
-
-### 静态与配置检查
-
-```bash
-conda run -n sac_sb3_demo python -m py_compile \
-  main.py \
-  render_sac_lunarlander_gif.py \
-  sac_experiments/config.py \
-  sac_experiments/training.py \
-  sac_experiments/lunarlander_common.py \
-  sac_experiments/variants.py \
-  sac_experiments/ltc_features.py \
-  sac_experiments/rbf_policies.py \
-  sac_experiments/rbf_sac_policies.py
-```
-
-```bash
-MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python -c \
-  "from pathlib import Path; from sac_experiments.config import load_config; c=load_config(Path('configs/sac/ltc_comparison.yaml')); print(c.variants)"
-```
-
-期望：
-
-```text
-('mlp', 'ltc', 'ltc_residual', 'ltc_residual_action')
-```
-
-PPO 多环境 smoke：
-
-```bash
-MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_parallel.yaml
-```
-
-### Observation shape 检查
-
-```bash
-MPLCONFIGDIR=/tmp/matplotlib-sac-demo \
-conda run -n sac_sb3_demo python -c \
-  "from sac_experiments.lunarlander_common import make_lunarlander_env; e=make_lunarlander_env(42, 4); print(e.observation_space.shape); e.close(); e=make_lunarlander_env(42, 4, use_action_history=True); print(e.observation_space.shape); e.close()"
-```
-
-期望：
-
-```text
-(4, 8)
-(4, 10)
-```
-
-### TensorBoard 观察指标
-
-重点看：
-
-- `eval/mean_reward`：最重要的对比指标，评估环境 deterministic policy。
-- `rollout/ep_rew_mean`：训练采样过程的平均回报，噪声更大。
-- `rollout/ep_len_mean`：episode length，LunarLander 中长 episode 不一定坏，需结合 reward 看。
-- `train/critic_loss`：过高或持续爆炸可能说明 Q 学习不稳定。
-- `train/actor_loss`：不同模型间绝对值不可直接比较，主要看是否异常发散。
-- `train/ent_coef`：自动熵系数，反映探索强度变化。
-- `time/fps`：训练效率。LTC 分支显著慢于 MLP 是预期现象。
-
-建议不要在 10k 或 20k steps 过早下结论，因为 `learning_starts=10_000`，真正梯度更新刚开始。更可靠的观察点是 100k、300k、500k，以及多 seed。
-
-### 结果文件
-
-每个 variant 应生成：
-
-```text
-outputs/lunarlander/[<run_tag>/]<variant>/best_model/best_model.zip
-outputs/lunarlander/[<run_tag>/]<variant>/final_model.zip
-outputs/lunarlander/[<run_tag>/]<variant>/eval_summary.json
-outputs/lunarlander/[<run_tag>/]<variant>/eval_logs/evaluations.npz
-```
-
-`eval_summary.json` 会记录：
-
-- variant
-- seed
-- timesteps
-- feature extractor
-- 是否使用 action history
-- raw/action 维度
-- best / final model path
-- 训练前后 reward
-
-### 训练产物同步规则
-
-仓库会提交可复查、体积小的实验记录：`experiment_summary*.json`、每个 variant 的
-`eval_summary.json`、`evaluations.npz`、`monitor/*.csv`、multi-seed 启动日志、
-TensorBoard `events.out.tfevents.*` 与 GIF 等可视化报告。这样克隆仓库后可以复查
-指标、学习曲线和运行过程，而不需要下载模型参数。
-
-训练权重和 checkpoint 不提交：`best_model/`、`checkpoints/`、`final_model.zip`，以及
-产物目录中的 `.zip`、`.pt`、`.pth`、`.ckpt`、`.onnx`、`.safetensors`、`.pkl`、
-`.pickle` 与 `.h5` 文件均由 [`.gitignore`](.gitignore) 排除；Matplotlib 字体缓存也不提交。
-因此可以安全执行：
-
-```bash
-git add outputs runs training_logs
-```
-
-提交前仍建议检查暂存内容，确保不存在计划外的大文件：
-
-```bash
-git diff --cached --stat
-git diff --cached --numstat
-```
-
-### GIF 可视化
-
-普通模型：
-
-```bash
-conda run -n sac_sb3_demo python render_sac_lunarlander_gif.py \
-  --model-path outputs/lunarlander/<run_tag>/mlp/best_model/best_model.zip \
-  --output-path outputs/lunarlander/<run_tag>/visualizations/mlp_best.gif
-```
-
-PPO 模型需要显式选择加载器：
-
-```bash
-conda run -n sac_sb3_demo python render_sac_lunarlander_gif.py \
-  --algorithm PPO \
-  --model-path outputs/lunarlander_ppo_parallel/<run_tag>/mlp/best_model/best_model.zip \
-  --output-path outputs/lunarlander_ppo_parallel/<run_tag>/visualizations/mlp_best.gif
-```
-
-动作历史模型同样直接指定模型路径：
-
-```bash
-conda run -n sac_sb3_demo python render_sac_lunarlander_gif.py \
-  --model-path outputs/lunarlander/<run_tag>/ltc_residual_action/best_model/best_model.zip \
-  --output-path outputs/lunarlander/<run_tag>/visualizations/ltc_act_best.gif
-```
-
-渲染器会从模型保存的 observation space 自动识别单帧 / frame stack 与 action history；`--frame-stack` 和 `--action-history` 仅用于显式一致性校验。GIF 用于直观看落地姿态、主发动机和侧向控制是否稳定，不能替代多 episode evaluation。
-
-## 当前判断标准
-
-单次训练的判断优先级：
-
-1. best eval mean reward
-2. final eval mean reward
-3. 300k 之后的稳定性
-4. last10 eval mean / std
-5. 训练 FPS 和推理复杂度
-6. GIF 中的落地质量
-
-研究结论必须多 seed 支撑。推荐 seeds：
-
-```text
-0, 1, 2, 3, 4
-```
-
-如果 `ltc_residual_action` 在多 seed 上同时提升 learning speed 和 best/final reward，才说明动作历史和 LTC 分支结合有稳定收益。
-
-## TODO / Roadmap
-
-这个 TODO 不是普通工程待办，而是当前 SAC + LTC 学习路线的研究备忘。优先级顺序是：先把实验统计做扎实，再扩展 LTC 结构，最后再进入真正 recurrent 的 SAC。
-
-更完整的 LTC 结构说明见 [docs/research_roadmap.md](docs/research_roadmap.md)。
-
-### 新增实验基础设施 TODO
-
-- [ ] 完成并行环境对比实验：可复现 `VecEnv`、随机种子、callback / checkpoint 频率和 summary 口径已经实现；下一步比较 `n_envs=1/2/4` 的 sample throughput、wall-clock、显存和最终 eval。
-- [ ] 加入 SAC / PPO 统一的超参数优化与调度：采用随机/Sobol sampler/TPE + ASHA/Hyperband，按完整 SAC transition 或 PPO rollout 做多保真筛选；MLP、LTC、RBF 获得相同调参预算，晋级候选必须多 seed 复验。具体 TODO 见 [docs/research_roadmap.md](docs/research_roadmap.md)。
-
-### P0: 先把当前 fixed-window 对照实验做扎实
-
-- [ ] 完成四组默认 variant 的 500k steps 对比：`mlp`、`ltc`、`ltc_residual`、`ltc_residual_action`。
-- [ ] 明确区分并保存 `final_model_eval` 和 `best_model_eval`，不要只依赖训练结束后的 final model。
-- [ ] 从 `evaluations.npz` 汇总每个 variant 的 learning curve、best eval、last-N eval mean/std。
-- [ ] 对 best / final model 分别生成 GIF，用于检查落地姿态、推力抖动和失败模式。
-- [ ] 记录 wall-clock time、FPS、参数量和推理复杂度，避免只看 reward。
-
-### P1: Multi-seed 统计
-
-- [ ] 把单 seed 配置扩展为 multi-seed runner，例如 `seeds: [0, 1, 2, 3, 4]`。
-- [ ] 每个 seed 使用独立 `run_tag` 或独立输出目录，避免 TensorBoard 和模型文件互相覆盖。
-- [ ] 汇总 `best_eval_mean_reward`、`final_eval_mean_reward`、`last10_eval_mean`、`last10_eval_std`。
-- [ ] 输出 `mean ± std` 表格，并保留每个 seed 的原始结果。
-- [ ] 只有当某个 variant 在多 seed 上稳定提高 reward 或收敛速度时，才把它视为有效结构，而不是单次训练偶然结果。
-
-### P2: Capacity-matched LTC / MLP 对照
-
-当前公式版 circuit LTC 的默认规模可能偏大：`liquid_hidden_dim=128`、`features_dim=256`、`raw_features_dim=128`、`fusion_hidden_dim=256`、`ode_unfolds=4`。由于 circuit LTC 包含近似 `H × H` 的 pairwise gate，当前对比可能混合了两个因素：一是 LTC 是否提供有用的时序归纳偏置，二是 LTC 系列是否只是因为网络容量和计算量更大而表现不同。因此后续需要加入 capacity-matched 对照，让带时序网络的算法和基准 MLP 尽量处于相近规模。
-
-- [ ] 增加 `capacity_matched_ltc` 配置，例如 `liquid_hidden_dim=32`、`features_dim=64`、`raw_features_dim=32`、`fusion_hidden_dim=64`、`ode_unfolds=1`。
-- [ ] 增加稍强的 `capacity_matched_ltc_mid` 配置，例如 `liquid_hidden_dim=48`、`features_dim=96`、`raw_features_dim=48`、`fusion_hidden_dim=96`、`ode_unfolds=1`。
-- [ ] 保持 SAC actor / critic 后端 `net_arch=[400, 300]` 不变，优先只控制 feature extractor 的规模，避免同时改动太多变量。
-- [ ] 记录并比较 MLP 与 capacity-matched LTC 的参数量、`time/fps`、wall-clock time、`eval/mean_reward`、`last10_eval_std` 和 `critic_loss`。
-- [ ] 如果 capacity-matched LTC 仍能接近或超过 MLP，说明时序结构可能有独立价值；如果只有大规模 LTC 有优势，则需要谨慎区分结构收益和容量收益。
-
-### P3: Dense H×H circuit LTC 的稀疏化
-
-当前 circuit LTC 使用近似全连接的 `H × H` 液态连接。`hidden_dim=128` 时仍可接受，但计算复杂度和参数规模会随 hidden size 二次增长。因此后续需要加入 sparse / circuit mask 做结构消融。
-
-- [ ] 增加 `connection_mask`，让 gate 和 reversal potential 只在 mask 指定的连接上生效。
-- [ ] 比较 dense LTC、random sparse LTC、block sparse LTC、local/ring sparse LTC。
-- [ ] 保留 NCP-style sparse wiring 作为参考路线，但不要一开始就依赖 `ncps`，优先保持自实现结构可解释。
-- [ ] 统计不同 sparsity ratio 下的 reward、FPS、参数量和显存占用。
-- [ ] 检查 sparse mask 是否改变训练稳定性，而不仅仅是降低计算量。
-- [ ] 如果 sparse circuit 的性能接近 dense circuit，但速度更快，则优先保留 sparse 版本作为后续 recurrent 主线候选。
-
-### P4: Action-history 与时序建模消融
-
-- [ ] 对 `ltc_residual_action` 增加更细的 action-history ablation。
-- [ ] 比较 previous action 只进入 LTC branch、同时进入 raw branch、完全不进入网络三种设置。
-- [ ] 比较不同 frame stack 长度，例如 2、4、8。
-- [ ] 检查动作历史是否主要改善 early learning，还是改善最终 best reward。
-- [ ] 关注失败模式：动作历史可能帮助建模输入惯性，也可能让网络过拟合短窗口相关性。
-
-### P5: Recurrent SAC / full recurrent LTC-SAC
-
-当前实现本质上仍是 fixed-window encoder：用 frame stack 伪造短时序输入，然后输出一个 feature vector。真正的 recurrent 版本需要改变 replay 和训练逻辑，不能只把 feature extractor 换成 RNN。
-
-- [ ] 调研 SB3 SAC 是否适合直接扩展 recurrent policy；如果不适合，考虑 SB3-Contrib、CleanRL、Tianshou、TorchRL 或自写最小 recurrent SAC。
-- [ ] 实现 sequence replay buffer，支持按 episode 采样连续片段。
-- [ ] 处理 hidden state carry、episode reset、done mask 和 truncated mask。
-- [ ] 加入 burn-in，让 hidden state 先用历史片段预热，再在后续片段上计算 loss。
-- [ ] 明确 actor、critic、target critic 的 recurrent state 如何同步和截断反传。
-- [ ] 比较 fixed-window LTC-SAC 与 recurrent LTC-SAC 的收益，判断 recurrent 是否真的必要。
-- [ ] 在 LunarLander 验证稳定后，再迁移到更符合控制背景的任务，例如带输入延迟、执行器滞后或部分可观测状态的 USV / UAV 控制环境。
-
-### P6: 最终可能形成的研究问题
-
-- [ ] LTC 是否只是增加了网络容量，还是确实提供了有用的动态记忆？
-- [ ] residual branch 是否是 SAC 中使用 LTC 的必要稳定化结构？
-- [ ] previous action history 是否能显著改善连续控制中的输入-状态动态建模？
-- [ ] sparse circuit mask 能否在基本不损失 reward 的情况下提高训练和推理效率？
-- [ ] fixed-window LTC 和 full recurrent LTC-SAC 的收益边界在哪里？
+后续超参数搜索计划采用随机、Sobol 与 TPE sampler，结合 ASHA / Hyperband
+进行多保真筛选；不同算法和结构保持相同调参预算，并对晋级候选进行多 seed 复验。

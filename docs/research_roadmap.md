@@ -179,9 +179,9 @@ a_t = π(h_t)
 - [ ] 用多个 seed 分别验证 CPU RL-Zoo 强基线与 CUDA 大网络 PPO 的学习稳定性。
 - [ ] 分别比较 `n_envs=4/8/16` 的 wall-clock、throughput 与最终评估；16 环境强调轨迹多样性，不预设其吞吐一定最高。
 
-### 随机 / Sobol 超参数搜索与调度（SAC / PPO）
+### 随机 / Sobol / TPE 超参数搜索与调度（SAC / PPO）
 
-- [ ] 使用 Optuna 建立统一的 trial 记录与 YAML 配置生成；只采用 `RandomSampler` 或 Sobol `QMCSampler`，不引入模型驱动的贝叶斯搜索。Sobol 适合小预算连续空间的均匀覆盖，随机采样适合混合离散/条件搜索空间。
+- [ ] 使用 Optuna 建立统一的 trial 记录与 YAML 配置生成；采用 `RandomSampler`、Sobol `QMCSampler` 或 TPE sampler，不引入更复杂的模型驱动搜索。Sobol 适合小预算连续空间的均匀覆盖，随机采样适合混合离散/条件搜索空间，TPE 适合在已有 trial 结果后集中探索更有希望的区域。
 - [ ] 使用 ASHA / Hyperband 进行多保真调度，而不是改变 SAC/PPO 的同步训练逻辑。SAC rung 使用 `100k → 250k → 500k` total transitions；PPO rung 必须是完整 rollout 数，使用 `262,144 → 524,288 → 1,048,576` transitions。
 - [ ] SAC 搜索时固定 `n_envs=8`、`train_freq=1`、`gradient_steps=8`、replay-buffer 口径和正式预算；优先搜索 learning rate、`tau`、`gamma`、batch size、entropy coefficient，以及 RBF 的中心范围/初始带宽/最小带宽。6050/6255 容量匹配组只使用筛选出的候选配置复验，不进入首轮大搜索。
 - [ ] PPO 搜索时保持 16 环境与完整 rollout/minibatch 约束；优先搜索 learning rate、`clip_range`、`gae_lambda`、`gamma`、`ent_coef`、`n_epochs`、batch size 和 MLP/RBF 容量。CPU `[64,64]` 基线与 CUDA `[400,300]` 实验分别建 study，不能混合吞吐或参数量结论。
