@@ -236,20 +236,10 @@ def _entropy_coefficient(value: Any) -> float | str:
     return _positive_float(value, "sac.ent_coef")
 
 
-def load_config(path: Path) -> ExperimentConfig:
-    override = load_yaml_file(path)
-    reject_unknown_keys(override, DEFAULT_CONFIG)
-    config = deep_merge(DEFAULT_CONFIG, override)
-
-    experiment = _section(config, "experiment")
-    environment = _section(config, "environment")
-    training = _section(config, "training")
-    evaluation = _section(config, "evaluation")
-    output = _section(config, "output")
-    sac = _section(config, "sac")
-    ppo = _section(config, "ppo")
-    ltc = _section(config, "ltc")
-    rbf = _section(config, "rbf")
+def _validate_experiment_section(
+    experiment: Mapping[str, Any],
+) -> tuple[str, str, str, tuple[Variant, ...]]:
+    """Validate the experiment identity and canonicalize its variant names."""
 
     env_id = str(experiment["environment"])
     algorithm = str(experiment["algorithm"])
@@ -269,6 +259,16 @@ def load_config(path: Path) -> ExperimentConfig:
     variants = tuple(canonical_variant(str(variant)) for variant in variants_value)
     if len(set(variants)) != len(variants):
         raise ValueError(f"experiment.variants contains duplicates: {variants}")
+    return env_id, algorithm, policy, variants
+
+
+def _validate_runtime_sections(
+    environment: Mapping[str, Any],
+    training: Mapping[str, Any],
+    variants: tuple[Variant, ...],
+    algorithm: str,
+) -> tuple[int, int, int, int, str, bool, bool]:
+    """Validate environment shape, transition budget, seed, and device settings."""
 
     frame_stack = _positive_int(environment["frame_stack"], "environment.frame_stack")
     n_envs = _positive_int(environment["n_envs"], "environment.n_envs")
@@ -301,6 +301,23 @@ def load_config(path: Path) -> ExperimentConfig:
     progress_bar = training["progress_bar"]
     if not isinstance(allow_cpu, bool) or not isinstance(progress_bar, bool):
         raise ValueError("training.allow_cpu and training.progress_bar must be booleans.")
+    return (
+        frame_stack,
+        n_envs,
+        timesteps,
+        seed,
+        device,
+        allow_cpu,
+        progress_bar,
+    )
+
+
+def _validate_evaluation_section(
+    evaluation: Mapping[str, Any],
+    timesteps: int,
+    n_envs: int,
+) -> tuple[int, int]:
+    """Validate evaluation cadence in total-transition units."""
 
     eval_episodes = _positive_int(evaluation["episodes"], "evaluation.episodes")
     eval_freq = _positive_int(evaluation["frequency"], "evaluation.frequency")
@@ -314,6 +331,13 @@ def load_config(path: Path) -> ExperimentConfig:
             "evaluation.frequency must be divisible by environment.n_envs because "
             "vectorized callbacks run once per VecEnv step."
         )
+    return eval_episodes, eval_freq
+
+
+def _validate_output_section(
+    output: Mapping[str, Any],
+) -> tuple[Path, Path, str | None]:
+    """Resolve safe output paths and an optional single-segment run tag."""
 
     output_directory_value = output["directory"]
     tensorboard_log_value = output["tensorboard_log"]
@@ -340,6 +364,23 @@ def load_config(path: Path) -> ExperimentConfig:
     if run_tag:
         output_dir /= run_tag
         tensorboard_log /= run_tag
+    return output_dir, tensorboard_log, run_tag
+
+
+def _validate_algorithm_sections(
+    sac: Mapping[str, Any],
+    ppo: Mapping[str, Any],
+    algorithm: str,
+    n_envs: int,
+    timesteps: int,
+) -> tuple[
+    float,
+    str,
+    tuple[int, ...],
+    dict[str, Any],
+    dict[str, Any],
+]:
+    """Validate shared optimizer settings plus SAC- and PPO-specific contracts."""
 
     algorithm_name = algorithm.lower()
     algorithm_section = sac if algorithm == "SAC" else ppo
@@ -421,6 +462,20 @@ def load_config(path: Path) -> ExperimentConfig:
     target_kl = ppo_kwargs["target_kl"]
     if target_kl is not None:
         ppo_kwargs["target_kl"] = _positive_float(target_kl, "ppo.target_kl")
+    return (
+        learning_rate,
+        learning_rate_schedule,
+        policy_net_arch,
+        sac_kwargs,
+        ppo_kwargs,
+    )
+
+
+def _validate_feature_sections(
+    ltc: Mapping[str, Any],
+    rbf: Mapping[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Validate the LTC and RBF architecture parameters."""
 
     for key in ("liquid_hidden_dim", "features_dim", "raw_features_dim", "fusion_hidden_dim", "ode_unfolds"):
         _positive_int(ltc[key], f"ltc.{key}")
@@ -445,6 +500,50 @@ def load_config(path: Path) -> ExperimentConfig:
         raise ValueError(
             "rbf.initial_bandwidth must be greater than rbf.min_bandwidth."
         )
+    return dict(ltc), dict(rbf)
+
+
+def load_config(path: Path) -> ExperimentConfig:
+    """Load a YAML file, validate each section, and return runtime-ready settings."""
+
+    override = load_yaml_file(path)
+    reject_unknown_keys(override, DEFAULT_CONFIG)
+    config = deep_merge(DEFAULT_CONFIG, override)
+
+    experiment = _section(config, "experiment")
+    environment = _section(config, "environment")
+    training = _section(config, "training")
+    evaluation = _section(config, "evaluation")
+    output = _section(config, "output")
+    sac = _section(config, "sac")
+    ppo = _section(config, "ppo")
+    ltc = _section(config, "ltc")
+    rbf = _section(config, "rbf")
+
+    env_id, algorithm, policy, variants = _validate_experiment_section(experiment)
+    (
+        frame_stack,
+        n_envs,
+        timesteps,
+        seed,
+        device,
+        allow_cpu,
+        progress_bar,
+    ) = _validate_runtime_sections(environment, training, variants, algorithm)
+    eval_episodes, eval_freq = _validate_evaluation_section(
+        evaluation,
+        timesteps,
+        n_envs,
+    )
+    output_dir, tensorboard_log, run_tag = _validate_output_section(output)
+    (
+        learning_rate,
+        learning_rate_schedule,
+        policy_net_arch,
+        sac_kwargs,
+        ppo_kwargs,
+    ) = _validate_algorithm_sections(sac, ppo, algorithm, n_envs, timesteps)
+    ltc_kwargs, rbf_kwargs = _validate_feature_sections(ltc, rbf)
 
     return ExperimentConfig(
         config_path=path,
@@ -469,6 +568,6 @@ def load_config(path: Path) -> ExperimentConfig:
         policy_net_arch=policy_net_arch,
         sac=MappingProxyType(sac_kwargs),
         ppo=MappingProxyType(ppo_kwargs),
-        ltc=MappingProxyType(dict(ltc)),
-        rbf=MappingProxyType(dict(rbf)),
+        ltc=MappingProxyType(ltc_kwargs),
+        rbf=MappingProxyType(rbf_kwargs),
     )

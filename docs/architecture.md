@@ -22,26 +22,35 @@ conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_ltc.yaml
 conda run -n sac_sb3_demo python main.py --search-config configs/search/sac_mlp_4070_balanced.yaml
 ```
 
-The call path is intentionally short:
+The top-level call path is intentionally explicit:
 
 ```text
 main.py
-  -> sac_experiments.config.load_config
-  -> sac_experiments.training.run_experiment
-  -> train_variant
+  ├─ --config
+  │    -> config.load_config
+  │    -> training.run_experiment
+  │    -> training.train_variant
+  │    -> model_factory.build_model
+  │
+  └─ --search-config
+       -> search.load_search_config
+       -> search.run_search / search.run_revalidation
+       -> training.run_experiment
 ```
 
-`main.py` owns only the command-line boundary. `config.py` owns YAML defaults,
-strict validation, and the immutable runtime config. `training.py` owns the
-top-to-bottom experiment lifecycle: create environments, build a variant, train,
-evaluate, and save models and summaries.
+`main.py` owns argument parsing and makes the three workflows—normal training,
+search, and revalidation—visible to a new reader. `config.py` validates each
+YAML section and creates the immutable runtime config. `training.py` owns the
+top-to-bottom lifecycle: create environments, train, evaluate, and clean up.
+`model_factory.py` translates a validated config into one SB3 model, while
+`reporting.py` owns parameter counting and the stable JSON output contract.
 
-Hyperparameter search is a separate orchestration layer, not a second trainer:
-`hyperparameter_search.py` parses its own strict search YAML, renders one normal
-experiment YAML per trial, and calls `training.run_experiment()`. It injects only
-an optional evaluation callback and a lightweight artifact policy. This keeps
-SAC/PPO environment creation, model dispatch, evaluation, and cleanup in one
-place.
+Hyperparameter search is a separate orchestration package, not a second trainer.
+`search/config.py` parses the strict search YAML, `search/runner.py` owns
+Optuna/ASHA execution, `search/revalidation.py` performs multi-seed selection,
+and `search/artifacts.py` writes reproducibility artifacts. Every trial still
+renders one normal experiment YAML and calls `training.run_experiment()`.
+`hyperparameter_search.py` remains only as a compatibility import facade.
 
 ## YAML Contract
 
@@ -104,12 +113,14 @@ output/TensorBoard roots. It is a capacity-and-hardware experiment, while
 
 ## Main Modules
 
-- `sac_experiments/config.py`: grouped YAML schema and validation.
-- `sac_experiments/training.py`: sequential variant training and summaries.
-- `sac_experiments/hyperparameter_search.py`: TPE/ASHA orchestration, trial
-  rendering, SQLite persistence, and statistical revalidation.
+- `sac_experiments/config.py`: grouped YAML schema and section validation.
+- `sac_experiments/training.py`: sequential variant training lifecycle.
+- `sac_experiments/model_factory.py`: SB3 algorithm and policy construction.
+- `sac_experiments/reporting.py`: parameter counts and JSON summaries.
+- `sac_experiments/search/`: search config, TPE/ASHA execution, artifacts, and
+  statistical revalidation.
 - `sac_experiments/lunarlander_common.py`: environment, wrappers, CUDA checks, and evaluation helpers.
-- `sac_experiments/variants.py`: maps variant names to SB3 policy kwargs.
+- `sac_experiments/variants.py`: explicit variant metadata and policy registry.
 - `sac_experiments/ltc_features.py`: simple, circuit, and residual LTC feature extractors.
 - `sac_experiments/rbf_policies.py`: shared Gaussian RBF layer plus PPO RBF policies.
 - `sac_experiments/rbf_sac_policies.py`: SAC RBF actor and twin-Q policy classes.
@@ -120,13 +131,13 @@ separate from the training entrypoint without needing a second config parser.
 
 ## Reading Order
 
-1. `configs/sac/ltc_comparison.yaml`
-2. `configs/sac/rbf_comparison.yaml` when studying RBF-SAC
-3. `main.py`
-4. `sac_experiments/config.py`
-5. `sac_experiments/training.py`
-6. `sac_experiments/variants.py`
-7. `sac_experiments/ltc_features.py`
+1. `main.py`：先看训练、搜索、复验如何分流。
+2. `configs/sac/ltc_comparison.yaml`：理解一次实验如何描述。
+3. `sac_experiments/config.py`：看每个 YAML section 如何变成运行时配置。
+4. `sac_experiments/training.py`：沿着实验和单 variant 生命周期阅读。
+5. `sac_experiments/variants.py`：理解 variant 如何选择策略和特征结构。
+6. `sac_experiments/ltc_features.py` 或 `rbf_*.py`：最后进入具体网络实现。
+7. `sac_experiments/search/`：需要调参时再读独立搜索工作流。
 
 ## RBF Policy Extensions
 

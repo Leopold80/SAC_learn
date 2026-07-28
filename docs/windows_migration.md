@@ -63,9 +63,15 @@ python -m py_compile `
   render_sac_lunarlander_gif.py `
   sac_experiments/config.py `
   sac_experiments/training.py `
+  sac_experiments/model_factory.py `
+  sac_experiments/reporting.py `
   sac_experiments/lunarlander_common.py `
   sac_experiments/variants.py `
-  sac_experiments/ltc_features.py
+  sac_experiments/ltc_features.py `
+  sac_experiments/search/config.py `
+  sac_experiments/search/runner.py `
+  sac_experiments/search/revalidation.py `
+  sac_experiments/search/artifacts.py
 ```
 
 Check YAML config loading:

@@ -22,9 +22,10 @@ LTC 只是其中一条表示学习路线，不作为整个仓库的唯一主题�
 ### 2. 代码结构
 
 - `docs/architecture.md`
-  - `main.py -> config -> training -> variant` 调用链
+  - `main.py -> config -> training -> model/variant` 调用链
   - YAML 配置协议
   - 模块职责
+  - 固定的代码阅读顺序
 
 ### 3. 强化学习算法实验
 

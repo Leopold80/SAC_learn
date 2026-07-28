@@ -9,8 +9,9 @@ target critic、replay buffer 和梯度更新仍由一个 SAC learner 管理，�
 
 - [`sac_experiments/lunarlander_common.py`](../sac_experiments/lunarlander_common.py)：
   构造 `DummyVecEnv` / `SubprocVecEnv`。
-- [`sac_experiments/training.py`](../sac_experiments/training.py)：训练、评估、callback
-  频率换算和 summary。
+- [`sac_experiments/training.py`](../sac_experiments/training.py)：训练、评估和 callback
+  频率换算。
+- [`sac_experiments/reporting.py`](../sac_experiments/reporting.py)：实验 summary。
 - [`sac_experiments/config.py`](../sac_experiments/config.py)：`n_envs` 及整除约束。
 - [`configs/sac/parallel/parallel_8env.yaml`](../configs/sac/parallel/parallel_8env.yaml)：正式八环境基线。
 - [`configs/smoke/sac_parallel.yaml`](../configs/smoke/sac_parallel.yaml)：双环境短流程检查。

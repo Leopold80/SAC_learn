@@ -35,10 +35,12 @@ configs/
     smoke/      快速流程检查
 
 sac_experiments/
-    config.py          YAML解析与约束检查
-    training.py        统一训练流程
-    hyperparameter_search.py  TPE搜索与统计复验
-    variants.py        实验variant注册
+    config.py          分section解析与校验YAML
+    training.py        统一训练生命周期编排
+    model_factory.py   根据配置构造SB3模型
+    reporting.py       参数统计与JSON实验摘要
+    variants.py        variant元数据与策略注册表
+    search/            TPE/ASHA、产物和统计复验
     ltc_features.py    LTC feature extractor
     rbf_*.py           RBF策略实现
 

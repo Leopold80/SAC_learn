@@ -15,12 +15,16 @@ from sac_experiments.hyperparameter_search import (
     _render_config,
     load_search_config,
 )
+from sac_experiments.search import load_search_config as modular_load_search_config
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 class HyperparameterSearchConfigTests(unittest.TestCase):
+    def test_compatibility_facade_reexports_modular_loader(self) -> None:
+        self.assertIs(load_search_config, modular_load_search_config)
+
     def test_sac_balanced_config_is_valid_and_aligned(self) -> None:
         config = load_search_config(
             REPO_ROOT / "configs/search/sac_mlp_4070_balanced.yaml"
