@@ -19,6 +19,7 @@ conda run -n sac_sb3_demo python main.py --config configs/sac/parallel/parallel_
 conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel.yaml
 conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel_large.yaml
 conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_ltc.yaml
+conda run -n sac_sb3_demo python main.py --search-config configs/search/sac_mlp_4070_balanced.yaml
 ```
 
 The call path is intentionally short:
@@ -34,6 +35,13 @@ main.py
 strict validation, and the immutable runtime config. `training.py` owns the
 top-to-bottom experiment lifecycle: create environments, build a variant, train,
 evaluate, and save models and summaries.
+
+Hyperparameter search is a separate orchestration layer, not a second trainer:
+`hyperparameter_search.py` parses its own strict search YAML, renders one normal
+experiment YAML per trial, and calls `training.run_experiment()`. It injects only
+an optional evaluation callback and a lightweight artifact policy. This keeps
+SAC/PPO environment creation, model dispatch, evaluation, and cleanup in one
+place.
 
 ## YAML Contract
 
@@ -60,7 +68,8 @@ single-segment `output.run_tag` for every additional run.
 Configs are grouped by purpose: `configs/sac/` for formal SAC experiments,
 `configs/sac/parallel/` for SAC worker-count or batching studies,
 `configs/ppo/` for formal PPO experiments, and `configs/smoke/` for short
-pipeline checks. This directory structure is only for discovery; every YAML
+pipeline checks. `configs/search/` contains Optuna study YAMLs and their dedicated
+search smoke bases. This directory structure is only for discovery; every YAML
 still follows the same runtime schema.
 
 `configs/sac/baseline.yaml` selects only `mlp` and sets `frame_stack: 1`. It uses the
@@ -97,6 +106,8 @@ output/TensorBoard roots. It is a capacity-and-hardware experiment, while
 
 - `sac_experiments/config.py`: grouped YAML schema and validation.
 - `sac_experiments/training.py`: sequential variant training and summaries.
+- `sac_experiments/hyperparameter_search.py`: TPE/ASHA orchestration, trial
+  rendering, SQLite persistence, and statistical revalidation.
 - `sac_experiments/lunarlander_common.py`: environment, wrappers, CUDA checks, and evaluation helpers.
 - `sac_experiments/variants.py`: maps variant names to SB3 policy kwargs.
 - `sac_experiments/ltc_features.py`: simple, circuit, and residual LTC feature extractors.

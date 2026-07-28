@@ -179,15 +179,15 @@ a_t = π(h_t)
 - [ ] 用多个 seed 分别验证 CPU RL-Zoo 强基线与 CUDA 大网络 PPO 的学习稳定性。
 - [ ] 分别比较 `n_envs=4/8/16` 的 wall-clock、throughput 与最终评估；16 环境强调轨迹多样性，不预设其吞吐一定最高。
 
-### 随机 / Sobol / TPE 超参数搜索与调度（SAC / PPO）
+### TPE 超参数搜索与调度（SAC / PPO）
 
-- [ ] 使用 Optuna 建立统一的 trial 记录与 YAML 配置生成；采用 `RandomSampler`、Sobol `QMCSampler` 或 TPE sampler，不引入更复杂的模型驱动搜索。Sobol 适合小预算连续空间的均匀覆盖，随机采样适合混合离散/条件搜索空间，TPE 适合在已有 trial 结果后集中探索更有希望的区域。
-- [ ] 使用 ASHA / Hyperband 进行多保真调度，而不是改变 SAC/PPO 的同步训练逻辑。SAC rung 使用 `100k → 250k → 500k` total transitions；PPO rung 必须是完整 rollout 数，使用 `262,144 → 524,288 → 1,048,576` transitions。
+- [x] 使用 Optuna 建立统一的 YAML 配置生成、SQLite trial 记录和可恢复的 TPE sampler 状态。默认单卡档使用 TPE，不把随机/Sobol sampler 的比较混入同一 study。
+- [x] 使用异步 successive halving 进行多保真调度，不改变 SAC/PPO 的同步训练逻辑。资源节点由每个搜索 YAML 定义，并强制对齐 evaluation、VecEnv 和 PPO rollout 约束。
 - [ ] SAC 搜索时固定 `n_envs=8`、`train_freq=1`、`gradient_steps=8`、replay-buffer 口径和正式预算；优先搜索 learning rate、`tau`、`gamma`、batch size、entropy coefficient，以及 RBF 的中心范围/初始带宽/最小带宽。6050/6255 容量匹配组只使用筛选出的候选配置复验，不进入首轮大搜索。
 - [ ] PPO 搜索时保持 16 环境与完整 rollout/minibatch 约束；优先搜索 learning rate、`clip_range`、`gae_lambda`、`gamma`、`ent_coef`、`n_epochs`、batch size 和 MLP/RBF 容量。CPU `[64,64]` 基线与 CUDA `[400,300]` 实验分别建 study，不能混合吞吐或参数量结论。
-- [ ] ASHA 的淘汰指标采用最近 3 次 deterministic evaluation 的平均回报，而不是单点 best reward；SAC 的首个 rung 必须大于 10k warmup，失败、NaN 和异常退出应显式记为失败 trial。
-- [ ] 每个搜索 trial 先使用一个 seed；对每个算法/结构家族的前 3–5 个候选，以 3 个独立 seed、完整预算复验。MLP、LTC、RBF 都必须获得相同 trial 数与总 transition 调参预算，避免选择偏差。
-- [ ] versioned summary 记录 sampler、pruner、rung、trial 参数、seed、final/best/last-3 evaluation、wall-clock、吞吐和失败原因；最终选型以多 seed 均值与离散性为准。
+- [x] ASHA 的淘汰指标使用最近 3 次 deterministic evaluation 的平均回报；失败、NaN 和异常退出显式记录为失败 trial。
+- [x] 每个搜索 trial 共用一个控制 seed；全预算 top-3 候选以共同的 5–9 个独立 seed 复验，并按单侧 95% 下置信界自动选型，避免人工看曲线决策。
+- [x] versioned summary 记录 sampler、pruner、rung、trial 参数、seed、评估、显存峰值和失败原因；最终选型以 `revalidation_summary.json` 的统计规则为准。
 
 ## 6. 推荐实验分支
 

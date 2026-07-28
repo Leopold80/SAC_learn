@@ -17,6 +17,7 @@ outputs/**/*.pkl
 outputs/**/*.pickle
 outputs/**/*.h5
 outputs/**/matplotlib/
+outputs/**/study.sqlite3*
 
 runs/**/*.zip
 runs/**/*.pt

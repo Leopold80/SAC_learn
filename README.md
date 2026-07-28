@@ -31,11 +31,13 @@ python main.py --config <yaml>
 configs/
     sac/        SAC正式实验
     ppo/        PPO正式实验
+    search/     TPE搜索与复验配置
     smoke/      快速流程检查
 
 sac_experiments/
     config.py          YAML解析与约束检查
     training.py        统一训练流程
+    hyperparameter_search.py  TPE搜索与统计复验
     variants.py        实验variant注册
     ltc_features.py    LTC feature extractor
     rbf_*.py           RBF策略实现
@@ -47,6 +49,7 @@ docs/
     rbf_sac.md
     rbf_ppo.md
     ltc.md
+    hyperparameter_search.md
     research_roadmap.md
 ```
 
@@ -109,6 +112,30 @@ python main.py --config configs/sac/parallel/parallel_8env.yaml
 python main.py --config configs/ppo/parallel.yaml
 ```
 
+单卡 CUDA 超参数搜索：
+
+```bash
+python main.py --search-config configs/search/sac_mlp_4070_balanced.yaml
+python main.py --search-config configs/search/sac_mlp_4070_balanced.yaml --revalidate
+```
+
+## 超参数搜索工作流索引
+
+超参数系统分为四个职责不同的阶段：
+
+| 阶段 | 负责什么 | 详细说明 |
+|---|---|---|
+| TPE | 根据历史 trial 建议下一组超参数 | [TPE 的功能与采样过程](docs/hyperparameter_search.md#4-tpe-的功能与一次采样过程) |
+| ASHA | 在资源节点停止明显落后的 trial | [ASHA 的功能与剪枝过程](docs/hyperparameter_search.md#5-asha-的功能与剪枝过程) |
+| 自动复验 | 对 top-k 配置执行独立多 seed 完整训练和 95% LCB 比较 | [自动统计复验的完整过程](docs/hyperparameter_search.md#9-自动统计复验的完整过程) |
+| 正式训练 | 使用冠军配置训练并保存最终模型、checkpoint 和 TensorBoard | [复验之后的正式训练](docs/hyperparameter_search.md#10-复验之后正式训练发生什么) |
+
+文字化的端到端使用说明见：
+
+- [完整命令工作流](docs/hyperparameter_search.md#12-完整命令工作流)；
+- [产物目录与推荐阅读顺序](docs/hyperparameter_search.md#13-产物目录与推荐阅读顺序)；
+- [常见误解与判断边界](docs/hyperparameter_search.md#14-常见误解与判断边界)。
+
 ## 实验记录原则
 
 训练结果保存：
@@ -136,5 +163,5 @@ LTC、RBF 等结构均作为 feature / policy approximation 改进进行研究�
 
 它们的有效性需要通过统一预算、多 seed 实验验证。
 
-后续超参数搜索计划采用随机、Sobol 与 TPE sampler，结合 ASHA / Hyperband
-进行多保真筛选；不同算法和结构保持相同调参预算，并对晋级候选进行多 seed 复验。
+超参数搜索和自动统计复验的完整动机、配置与结果解释见
+[`docs/hyperparameter_search.md`](docs/hyperparameter_search.md)。

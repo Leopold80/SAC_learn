@@ -62,6 +62,11 @@ LTC 只是其中一条表示学习路线，不作为整个仓库的唯一主题�
   - recurrent LTC-SAC
   - sparse LTC 等方向
 
+- `docs/hyperparameter_search.md`
+  - 单卡 TPE / ASHA 搜索
+  - trial 产物和恢复
+  - 多 seed 自动统计选型
+
 ## 实验原则
 
 所有结构改进均遵循：

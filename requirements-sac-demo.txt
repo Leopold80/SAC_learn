@@ -8,3 +8,5 @@ PyYAML
 swig
 tqdm
 rich
+optuna>=4,<5
+scipy
