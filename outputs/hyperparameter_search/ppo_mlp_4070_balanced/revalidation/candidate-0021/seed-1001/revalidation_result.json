@@ -1,0 +1,8 @@
+{
+  "candidate_trial": 21,
+  "evaluation_episodes": 50,
+  "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/revalidation/candidate-0021/seed-1001/outputs/experiment_summary_mlp.json",
+  "held_out_eval_seed": 1001001,
+  "score": 264.12247528,
+  "training_seed": 1001
+}

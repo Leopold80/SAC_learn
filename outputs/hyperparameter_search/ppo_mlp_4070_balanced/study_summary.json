@@ -1,0 +1,469 @@
+{
+  "completed_trials": 9,
+  "direction": "maximize",
+  "failed_trials": 0,
+  "pruned_trials": 15,
+  "study_name": "ppo_mlp_4070_balanced",
+  "target_trials": 24,
+  "trials": [
+    {
+      "number": 0,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.2901428612819832,
+        "ppo.ent_coef": 0.0002434877353455459,
+        "ppo.gae_lambda": 0.9658794547630265,
+        "ppo.gamma": 0.991913303835521,
+        "ppo.learning_rate": 0.00023688639503640813,
+        "ppo.n_epochs": 6
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 23550976,
+          "max_memory_reserved_bytes": 31457280
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0000/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 4.305768299999997,
+          "524288": 200.64990013333332
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0000/resolved_config.yaml"
+      },
+      "value": 165.81806163333331
+    },
+    {
+      "number": 1,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.26648852816008434,
+        "ppo.ent_coef": 0.0002846526357761096,
+        "ppo.gae_lambda": 0.9191105199610449,
+        "ppo.gamma": 0.9836183168474213,
+        "ppo.learning_rate": 0.0009330606024425672,
+        "ppo.n_epochs": 4
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -31.0466349
+    },
+    {
+      "number": 2,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.17327236865873835,
+        "ppo.ent_coef": 0.0003123317753376433,
+        "ppo.gae_lambda": 0.9410462985795333,
+        "ppo.gamma": 0.995625001631721,
+        "ppo.learning_rate": 0.00019594972058679176,
+        "ppo.n_epochs": 4
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -6.6519035333333365
+    },
+    {
+      "number": 3,
+      "params": {
+        "ppo.batch_size": 512,
+        "ppo.clip_range": 0.29312640661491185,
+        "ppo.ent_coef": 0.000174560376357974,
+        "ppo.gae_lambda": 0.9727557613304815,
+        "ppo.gamma": 0.98606181400655,
+        "ppo.learning_rate": 0.000888966790701893,
+        "ppo.n_epochs": 3
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": 184.61343060000002
+    },
+    {
+      "number": 4,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.23250445687079638,
+        "ppo.ent_coef": 0.0022608286763734953,
+        "ppo.gae_lambda": 0.928053996848047,
+        "ppo.gamma": 0.9903493536214384,
+        "ppo.learning_rate": 0.00018145961353490273,
+        "ppo.n_epochs": 4
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -53.94938053333334
+    },
+    {
+      "number": 5,
+      "params": {
+        "ppo.batch_size": 512,
+        "ppo.clip_range": 0.1176985004103839,
+        "ppo.ent_coef": 0.0006395620370993673,
+        "ppo.gae_lambda": 0.9176384576177231,
+        "ppo.gamma": 0.9809000230493197,
+        "ppo.learning_rate": 0.0008353610755311764,
+        "ppo.n_epochs": 6
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -52.587587066666664
+    },
+    {
+      "number": 6,
+      "params": {
+        "ppo.batch_size": 512,
+        "ppo.clip_range": 0.2604393961508079,
+        "ppo.ent_coef": 0.00818359129810136,
+        "ppo.gae_lambda": 0.9067095579311794,
+        "ppo.gamma": 0.9996390500383503,
+        "ppo.learning_rate": 0.00013833249975219982,
+        "ppo.n_epochs": 6
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -261.0347647333333
+    },
+    {
+      "number": 7,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.17169314570885452,
+        "ppo.ent_coef": 0.0034993311117088514,
+        "ppo.gae_lambda": 0.9104282153572617,
+        "ppo.gamma": 0.9971757581749243,
+        "ppo.learning_rate": 0.00011858906685575279,
+        "ppo.n_epochs": 3
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -203.62346986666668
+    },
+    {
+      "number": 8,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.10119943659116344,
+        "ppo.ent_coef": 0.024130180281955543,
+        "ppo.gae_lambda": 0.987258339970908,
+        "ppo.gamma": 0.9910516937204497,
+        "ppo.learning_rate": 0.000366325043157894,
+        "ppo.n_epochs": 6
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -57.98199593333334
+    },
+    {
+      "number": 9,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.20174469691431743,
+        "ppo.ent_coef": 0.0010203422644584391,
+        "ppo.gae_lambda": 0.9561222174797129,
+        "ppo.gamma": 0.9917504463229152,
+        "ppo.learning_rate": 0.00042080755385483774,
+        "ppo.n_epochs": 6
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 39547904,
+          "max_memory_reserved_bytes": 52428800
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0009/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 64.08854470000001,
+          "524288": 212.27153173333332
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0009/resolved_config.yaml"
+      },
+      "value": 257.308218
+    },
+    {
+      "number": 10,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.2064246335139772,
+        "ppo.ent_coef": 0.000994054982920296,
+        "ppo.gae_lambda": 0.9485241378189178,
+        "ppo.gamma": 0.9888178974602313,
+        "ppo.learning_rate": 0.00047326700037685337,
+        "ppo.n_epochs": 6
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 43547136,
+          "max_memory_reserved_bytes": 52428800
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0010/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 145.06691746666667,
+          "524288": 216.80604843333333
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0010/resolved_config.yaml"
+      },
+      "value": 241.02869123333332
+    },
+    {
+      "number": 11,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.20302627670268514,
+        "ppo.ent_coef": 0.0011156032326330692,
+        "ppo.gae_lambda": 0.9477806738673321,
+        "ppo.gamma": 0.986917905266882,
+        "ppo.learning_rate": 0.0004708780724439704,
+        "ppo.n_epochs": 6
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": 203.93972943333333
+    },
+    {
+      "number": 12,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.20237382299244017,
+        "ppo.ent_coef": 0.0009167409716741412,
+        "ppo.gae_lambda": 0.9507933011414758,
+        "ppo.gamma": 0.9882967997057173,
+        "ppo.learning_rate": 0.00044772959593045115,
+        "ppo.n_epochs": 6
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 39547904,
+          "max_memory_reserved_bytes": 52428800
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0012/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 110.9949175,
+          "524288": 240.97846273333334
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0012/resolved_config.yaml"
+      },
+      "value": 251.64216883333336
+    },
+    {
+      "number": 13,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.16618256836136297,
+        "ppo.ent_coef": 0.0028798917210919902,
+        "ppo.gae_lambda": 0.960996725219002,
+        "ppo.gamma": 0.9942325439917237,
+        "ppo.learning_rate": 0.0003906321708372134,
+        "ppo.n_epochs": 6
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 43547136,
+          "max_memory_reserved_bytes": 52428800
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0013/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 12.655471599999998,
+          "524288": 215.1836223
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0013/resolved_config.yaml"
+      },
+      "value": 261.4814071
+    },
+    {
+      "number": 14,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.1459659386374334,
+        "ppo.ent_coef": 0.004357978309708971,
+        "ppo.gae_lambda": 0.9651656507444513,
+        "ppo.gamma": 0.9944276272240988,
+        "ppo.learning_rate": 0.00030571038796447245,
+        "ppo.n_epochs": 6
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -27.494396433333332
+    },
+    {
+      "number": 15,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.15877447682385776,
+        "ppo.ent_coef": 0.013573531590535627,
+        "ppo.gae_lambda": 0.9794355949338157,
+        "ppo.gamma": 0.9933784606851153,
+        "ppo.learning_rate": 0.0006167479643061885,
+        "ppo.n_epochs": 3
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -30.0299797
+    },
+    {
+      "number": 16,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.13127787314626785,
+        "ppo.ent_coef": 0.002353997837621142,
+        "ppo.gae_lambda": 0.9594539321245612,
+        "ppo.gamma": 0.9976667119696392,
+        "ppo.learning_rate": 0.00028818494005348734,
+        "ppo.n_epochs": 6
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -91.83084486666667
+    },
+    {
+      "number": 17,
+      "params": {
+        "ppo.batch_size": 256,
+        "ppo.clip_range": 0.22961374247055324,
+        "ppo.ent_coef": 0.0005306014385658016,
+        "ppo.gae_lambda": 0.9319025285542856,
+        "ppo.gamma": 0.9927711889256997,
+        "ppo.learning_rate": 0.0003702536568331451,
+        "ppo.n_epochs": 6
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": 147.15764806666667
+    },
+    {
+      "number": 18,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.18304651285121024,
+        "ppo.ent_coef": 0.006794622549417827,
+        "ppo.gae_lambda": 0.9587954187640907,
+        "ppo.gamma": 0.9958377684616821,
+        "ppo.learning_rate": 0.000638023372295865,
+        "ppo.n_epochs": 4
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 34817024,
+          "max_memory_reserved_bytes": 56623104
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0018/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 194.16587206666668,
+          "524288": 234.6252638
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0018/resolved_config.yaml"
+      },
+      "value": 267.46286779999997
+    },
+    {
+      "number": 19,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.16768709338807072,
+        "ppo.ent_coef": 0.007582155047648994,
+        "ppo.gae_lambda": 0.9756757875766073,
+        "ppo.gamma": 0.9962885269081898,
+        "ppo.learning_rate": 0.00067122374408581,
+        "ppo.n_epochs": 4
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 38816256,
+          "max_memory_reserved_bytes": 56623104
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0019/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 131.67919173333334,
+          "524288": 238.21977666666666
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0019/resolved_config.yaml"
+      },
+      "value": 266.8896253666667
+    },
+    {
+      "number": 20,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.18204408451786197,
+        "ppo.ent_coef": 0.007242985408651031,
+        "ppo.gae_lambda": 0.9894138742469171,
+        "ppo.gamma": 0.9994154621193754,
+        "ppo.learning_rate": 0.0006803635103392426,
+        "ppo.n_epochs": 4
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": 65.57553193333334
+    },
+    {
+      "number": 21,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.15465960793412867,
+        "ppo.ent_coef": 0.009318174471012804,
+        "ppo.gae_lambda": 0.9709464390702494,
+        "ppo.gamma": 0.9953637835217718,
+        "ppo.learning_rate": 0.0006316345690555657,
+        "ppo.n_epochs": 4
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 43086336,
+          "max_memory_reserved_bytes": 56623104
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0021/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 88.09309183333335,
+          "524288": 248.78602563333334
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0021/resolved_config.yaml"
+      },
+      "value": 269.7627253
+    },
+    {
+      "number": 22,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.1464061061915603,
+        "ppo.ent_coef": 0.025880249117194533,
+        "ppo.gae_lambda": 0.9717124875045566,
+        "ppo.gamma": 0.9963957569872056,
+        "ppo.learning_rate": 0.0006068388354665557,
+        "ppo.n_epochs": 4
+      },
+      "state": "PRUNED",
+      "user_attrs": {},
+      "value": -26.476713033333326
+    },
+    {
+      "number": 23,
+      "params": {
+        "ppo.batch_size": 128,
+        "ppo.clip_range": 0.1853581943173617,
+        "ppo.ent_coef": 0.013399368296644133,
+        "ppo.gae_lambda": 0.979076430592473,
+        "ppo.gamma": 0.9954549486364562,
+        "ppo.learning_rate": 0.0007294655255517675,
+        "ppo.n_epochs": 4
+      },
+      "state": "COMPLETE",
+      "user_attrs": {
+        "cuda_memory": {
+          "max_memory_allocated_bytes": 42815488,
+          "max_memory_reserved_bytes": 56623104
+        },
+        "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0023/outputs/experiment_summary_mlp.json",
+        "reported_values": {
+          "262144": 151.49059266666669,
+          "524288": 260.06690476666665
+        },
+        "resolved_config": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0023/resolved_config.yaml"
+      },
+      "value": 276.77536919999994
+    }
+  ]
+}

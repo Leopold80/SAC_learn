@@ -1,0 +1,29 @@
+{
+  "base_config": "/home/leopold/sac_test/configs/ppo/parallel_large.yaml",
+  "base_config_sha256": "dda66066bab812dee231273779b6758c5b053045f12e12f1f3d6cbbf437c3218",
+  "git_head": "1532e2c10824d718339e5dfa14ff8254aed80d40",
+  "objective": {
+    "direction": "maximize",
+    "metric": "rolling_mean_of_last_3_deterministic_evaluations"
+  },
+  "optuna_version": "4.9.0",
+  "pruner": {
+    "min_resource": 262144,
+    "name": "SuccessiveHalvingPruner",
+    "reduction_factor": 2,
+    "rungs": [
+      262144,
+      524288
+    ]
+  },
+  "python_version": "3.12.8 | packaged by Anaconda, Inc. | (main, Dec 11 2024, 16:31:09) [GCC 11.2.0]",
+  "sampler": {
+    "n_startup_trials": 8,
+    "name": "TPESampler",
+    "seed": 42
+  },
+  "schema_version": 1,
+  "search_config": "/home/leopold/sac_test/configs/search/ppo_mlp_4070_balanced.yaml",
+  "search_config_sha256": "b7452a1e34eff005f732cc40478d6f8d9c62c15c966947b9c35d830a8f9fe1b4",
+  "study_name": "ppo_mlp_4070_balanced"
+}

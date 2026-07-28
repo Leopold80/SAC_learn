@@ -1,0 +1,14 @@
+SAC RBF multi-seed comparison started at 2026年 07月 27日 星期一 22:28:07 CST
+host_os=Linux
+device=cuda allow_cpu=false
+gpu=NVIDIA GeForce RTX 4070 Laptop GPU;
+config=configs/sac/rbf_comparison.yaml
+seeds=42 123 456
+runner=/home/leopold/anaconda3/envs/sac_sb3_demo/bin/python
+
+[1/3] seed=42 wall=39686s exit=0 2026年 07月 28日 星期二 09:29:33 CST
+[2/3] seed=123 wall=19351s exit=143 2026年 07月 28日 星期二 14:52:07 CST
+Seed 123 failed; later seeds will still run. See outputs/sac_rbf_multiseed_20260727_222807/seed123.log
+[3/3] seed=456 wall=8s exit=143 2026年 07月 28日 星期二 14:52:18 CST
+Seed 456 failed; later seeds will still run. See outputs/sac_rbf_multiseed_20260727_222807/seed456.log
+=== COMPLETE at 2026年 07月 28日 星期二 14:52:18 CST ===

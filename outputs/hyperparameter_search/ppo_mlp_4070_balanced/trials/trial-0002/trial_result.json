@@ -1,0 +1,17 @@
+{
+  "number": 2,
+  "params": {
+    "ppo.batch_size": 128,
+    "ppo.clip_range": 0.17327236865873835,
+    "ppo.ent_coef": 0.0003123317753376433,
+    "ppo.gae_lambda": 0.9410462985795333,
+    "ppo.gamma": 0.995625001631721,
+    "ppo.learning_rate": 0.00019594972058679176,
+    "ppo.n_epochs": 4
+  },
+  "reason": "Pruned at 262144 transitions with rolling reward -6.652.",
+  "reported_values": {
+    "262144": -6.6519035333333365
+  },
+  "state": "PRUNED"
+}

@@ -1,0 +1,100 @@
+{
+  "config": "/tmp/ppo_rbf_seed123.STDaFq",
+  "variant": "rbf_64",
+  "env_id": "LunarLanderContinuous-v3",
+  "algorithm": "PPO",
+  "algorithm_source": "stable-baselines3==2.7.0",
+  "policy": "MlpPolicy",
+  "policy_class": "RBFActorCriticPolicy",
+  "seed": 123,
+  "timesteps": 1048576,
+  "frame_stack": 1,
+  "n_envs": 16,
+  "vec_env": "SubprocVecEnv",
+  "worker_seeds": [
+    123,
+    124,
+    125,
+    126,
+    127,
+    128,
+    129,
+    130,
+    131,
+    132,
+    133,
+    134,
+    135,
+    136,
+    137,
+    138
+  ],
+  "eval_seed": 139,
+  "uses_action_history": false,
+  "raw_obs_dim": 8,
+  "action_dim": 2,
+  "learning_rate": {
+    "initial": 0.0003,
+    "schedule": "constant"
+  },
+  "n_steps": 1024,
+  "batch_size": 64,
+  "n_epochs": 4,
+  "gamma": 0.999,
+  "gae_lambda": 0.98,
+  "clip_range": 0.2,
+  "clip_range_vf": null,
+  "normalize_advantage": true,
+  "ent_coef": 0.01,
+  "vf_coef": 0.5,
+  "max_grad_norm": 0.5,
+  "use_sde": false,
+  "sde_sample_freq": -1,
+  "target_kl": null,
+  "policy_kwargs": {
+    "net_arch": [],
+    "features_extractor": "FlattenExtractor"
+  },
+  "network": {
+    "actor": "GaussianRBF -> linear Gaussian-policy head",
+    "critic": "GaussianRBF -> linear value head",
+    "hidden_mlp": false
+  },
+  "trainable_parameter_count": 2245,
+  "parameter_counts": {
+    "policy_total": 2245,
+    "optimized_total": 2245
+  },
+  "ltc": null,
+  "rbf": {
+    "num_centers": 64,
+    "center_init_range": 1.0,
+    "initial_bandwidth": 1.5,
+    "min_bandwidth": 0.05,
+    "centers": "learnable",
+    "bandwidths": "learnable diagonal per-center widths",
+    "basis": "exp(-0.5 * sum(((x-c)/sigma)^2))"
+  },
+  "eval_episodes": 10,
+  "eval_freq": 32768,
+  "callback_freq_vec_steps": 2048,
+  "training_wall_time_seconds": 277.6383718959987,
+  "sampled_transitions": 1048576,
+  "sample_throughput_transitions_per_second": 3776.7690137326867,
+  "rollout_size_transitions": 16384,
+  "minibatches_per_epoch": 256,
+  "optimizer_steps_per_rollout": 1024,
+  "sample_reuse_epochs": 4,
+  "before_training": {
+    "mean_reward": -267.97566820000003,
+    "std_reward": 53.7568204643183
+  },
+  "after_training": {
+    "mean_reward": -66.8080387,
+    "std_reward": 77.79805536991614
+  },
+  "best_eval_mean_reward": 68.87339010000001,
+  "final_model_path": "outputs/lunarlander_ppo_rbf/ppo-rbf-20260727_211945-seed123/rbf_64/final_model.zip",
+  "best_model_path": "outputs/lunarlander_ppo_rbf/ppo-rbf-20260727_211945-seed123/rbf_64/best_model/best_model.zip",
+  "tensorboard_log": "runs/lunarlander_ppo_rbf/ppo-rbf-20260727_211945-seed123/rbf_64_1"
+}

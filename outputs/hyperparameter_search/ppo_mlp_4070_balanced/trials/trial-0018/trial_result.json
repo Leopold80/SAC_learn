@@ -1,0 +1,23 @@
+{
+  "cuda_memory": {
+    "max_memory_allocated_bytes": 34817024,
+    "max_memory_reserved_bytes": 56623104
+  },
+  "experiment_summary": "outputs/hyperparameter_search/ppo_mlp_4070_balanced/trials/trial-0018/outputs/experiment_summary_mlp.json",
+  "number": 18,
+  "params": {
+    "ppo.batch_size": 128,
+    "ppo.clip_range": 0.18304651285121024,
+    "ppo.ent_coef": 0.006794622549417827,
+    "ppo.gae_lambda": 0.9587954187640907,
+    "ppo.gamma": 0.9958377684616821,
+    "ppo.learning_rate": 0.000638023372295865,
+    "ppo.n_epochs": 4
+  },
+  "reported_values": {
+    "262144": 194.16587206666668,
+    "524288": 234.6252638
+  },
+  "state": "COMPLETE",
+  "value": 267.46286779999997
+}
