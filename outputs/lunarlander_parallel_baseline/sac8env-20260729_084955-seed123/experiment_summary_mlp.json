@@ -1,0 +1,93 @@
+{
+  "config": "/tmp/sac8env_seed123.qhI4NS",
+  "env_id": "LunarLanderContinuous-v3",
+  "algorithm": "SAC",
+  "seed": 123,
+  "timesteps": 500000,
+  "frame_stack": 1,
+  "n_envs": 8,
+  "variants": [
+    {
+      "config": "/tmp/sac8env_seed123.qhI4NS",
+      "variant": "mlp",
+      "env_id": "LunarLanderContinuous-v3",
+      "algorithm": "SAC",
+      "algorithm_source": "stable-baselines3==2.7.0",
+      "policy": "MlpPolicy",
+      "policy_class": "SACPolicy",
+      "seed": 123,
+      "timesteps": 500000,
+      "frame_stack": 1,
+      "n_envs": 8,
+      "vec_env": "SubprocVecEnv",
+      "worker_seeds": [
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130
+      ],
+      "eval_seed": 131,
+      "uses_action_history": false,
+      "raw_obs_dim": 8,
+      "action_dim": 2,
+      "learning_rate": {
+        "initial": 0.00073,
+        "schedule": "linear"
+      },
+      "buffer_size": 1000000,
+      "batch_size": 256,
+      "ent_coef": "auto",
+      "gamma": 0.99,
+      "tau": 0.01,
+      "train_freq": 1,
+      "gradient_steps": 8,
+      "learning_starts": 10000,
+      "policy_kwargs": {
+        "net_arch": [
+          400,
+          300
+        ],
+        "features_extractor": "FlattenExtractor"
+      },
+      "network": {
+        "actor": "SB3 MLP -> squashed Gaussian-policy heads",
+        "critic": "two independent SB3 MLP Q(state, action) heads",
+        "target_critic": "Polyak-updated copies of the MLP twin Q critics",
+        "hidden_mlp": true
+      },
+      "trainable_parameter_count": 625108,
+      "parameter_counts": {
+        "policy_total": 625108,
+        "actor": 125104,
+        "online_critic": 250002,
+        "target_critic": 250002,
+        "optimized_total": 375106
+      },
+      "ltc": null,
+      "rbf": null,
+      "eval_episodes": 10,
+      "eval_freq": 10000,
+      "callback_freq_vec_steps": 1250,
+      "training_wall_time_seconds": 2299.8955137680023,
+      "sampled_transitions": 500000,
+      "sample_throughput_transitions_per_second": 217.40118062182393,
+      "gradient_updates_per_transition": 1.0,
+      "before_training": {
+        "mean_reward": -241.62090659999998,
+        "std_reward": 83.09935584202765
+      },
+      "after_training": {
+        "mean_reward": 283.4770536,
+        "std_reward": 8.599597394358678
+      },
+      "best_eval_mean_reward": 290.04201090000004,
+      "final_model_path": "outputs/lunarlander_parallel_baseline/sac8env-20260729_084955-seed123/mlp/final_model.zip",
+      "best_model_path": "outputs/lunarlander_parallel_baseline/sac8env-20260729_084955-seed123/mlp/best_model/best_model.zip",
+      "tensorboard_log": "runs/lunarlander_parallel_baseline/sac8env-20260729_084955-seed123/mlp_1"
+    }
+  ]
+}

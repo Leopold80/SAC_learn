@@ -1,0 +1,19 @@
+SAC vs PPO (CPU+GPU, same config) baseline — 2026年 07月 28日 星期二 21:10:32 CST
+host=Linux  gpu=NVIDIA GeForce RTX 4070 Laptop GPU;
+seeds=42 123 456
+runner=conda run -n sac_sb3_demo python
+---
+SAC:      configs/sac/baseline.yaml
+PPO_CPU:  configs/ppo/parallel.yaml  (device=cpu)
+PPO_GPU:  configs/ppo/parallel.yaml  (device=cuda)
+
+[1/9] SAC       seed=42   device=cuda  wall=2192s  exit=0  2026年 07月 28日 星期二 21:47:04 CST
+[2/9] SAC       seed=123  device=cuda  wall=2193s  exit=0  2026年 07月 28日 星期二 22:23:40 CST
+[3/9] SAC       seed=456  device=cuda  wall=2207s  exit=0  2026年 07月 28日 星期二 23:00:30 CST
+[4/9] PPO_CPU   seed=42   device=cpu   wall=240s  exit=0  2026年 07月 28日 星期二 23:04:33 CST
+[5/9] PPO_CPU   seed=123  device=cpu   wall=239s  exit=0  2026年 07月 28日 星期二 23:08:35 CST
+[6/9] PPO_CPU   seed=456  device=cpu   wall=239s  exit=0  2026年 07月 28日 星期二 23:12:37 CST
+[7/9] PPO_GPU   seed=42   device=cuda  wall=271s  exit=0  2026年 07月 28日 星期二 23:17:11 CST
+[8/9] PPO_GPU   seed=123  device=cuda  wall=268s  exit=0  2026年 07月 28日 星期二 23:21:42 CST
+[9/9] PPO_GPU   seed=456  device=cuda  wall=270s  exit=0  2026年 07月 28日 星期二 23:26:15 CST
+=== DONE at 2026年 07月 28日 星期二 23:26:15 CST ===
