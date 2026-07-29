@@ -1,5 +1,6 @@
-# PPO 32-env for Unitree Go2 locomotion (MuJoCo)
-# Same as baseline but with 32 parallel environments for faster data collection
+# PPO 32-env stage-1 forward-walking baseline for Unitree Go2 (MuJoCo)
+# Environment defaults use 50 Hz control, forward-only commands and no domain
+# randomization. Re-enable command diversity/randomization only after walking.
 
 experiment:
   environment: Go2Locomotion-v0
@@ -11,36 +12,37 @@ environment:
   n_envs: 32
 
 training:
-  timesteps: 4_992_000
+  # 9,765 PPO rollouts: 32 envs * 64 steps = 2,048 transitions/update
+  timesteps: 19_998_720
   seed: 42
   device: cuda
   allow_cpu: false
   progress_bar: true
 
 evaluation:
-  episodes: 10
-  frequency: 32_000
+  episodes: 20
+  frequency: 65_536
 
 output:
-  directory: outputs/go2_ppo_32env
-  tensorboard_log: runs/go2_ppo_32env
+  directory: outputs/go2_ppo_32env_fixed
+  tensorboard_log: runs/go2_ppo_32env_fixed
   run_tag: null
 
 ppo:
   learning_rate: 0.0003
   learning_rate_schedule: constant
   policy_net_arch: [256, 256]
-  n_steps: 1000
-  batch_size: 64
-  n_epochs: 10
+  n_steps: 64
+  batch_size: 512
+  n_epochs: 5
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
   clip_range_vf: null
   normalize_advantage: true
-  ent_coef: 0.001
-  vf_coef: 0.5
-  max_grad_norm: 0.5
+  ent_coef: 0.01
+  vf_coef: 1.0
+  max_grad_norm: 1.0
   use_sde: false
   sde_sample_freq: -1
-  target_kl: null
+  target_kl: 0.01
