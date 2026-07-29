@@ -57,9 +57,8 @@ class Go2LocomotionEnv(MujocoEnv):
     """Go2 quadruped locomotion with PD control and velocity tracking reward.
 
     The policy runs at 50 Hz: MuJoCo integrates ten 2 ms physics steps for each
-    policy action. The default task is intentionally a stage-1 forward-walking
-    task; lateral/yaw commands and domain randomization can be enabled later by
-    passing explicit constructor arguments.
+    policy action. The default task retains the full planar command space and
+    applies mass, friction, and PD-gain domain randomization at every reset.
     """
 
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 50}
@@ -72,12 +71,12 @@ class Go2LocomotionEnv(MujocoEnv):
         kd: float = DEFAULT_KD,
         action_scale: float = DEFAULT_ACTION_SCALE,
         default_pose: np.ndarray | None = None,
-        command_x_range: tuple[float, float] = (0.2, 0.8),
-        command_y_range: tuple[float, float] = (0.0, 0.0),
-        command_yaw_range: tuple[float, float] = (0.0, 0.0),
-        domain_rand_mass: float = 0.0,
-        domain_rand_friction: float = 0.0,
-        domain_rand_kp: float = 0.0,
+        command_x_range: tuple[float, float] = (0.0, 1.0),
+        command_y_range: tuple[float, float] = (-0.3, 0.3),
+        command_yaw_range: tuple[float, float] = (-0.5, 0.5),
+        domain_rand_mass: float = 0.15,
+        domain_rand_friction: float = 0.30,
+        domain_rand_kp: float = 0.15,
         render_mode: str | None = None,
         **_kwargs,
     ):
