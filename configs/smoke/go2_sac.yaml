@@ -1,0 +1,39 @@
+# SAC smoke test — minimal budget, Mac CPU, pipeline verification only
+
+experiment:
+  environment: Go2Locomotion-v0
+  algorithm: SAC
+  policy: MlpPolicy
+
+environment:
+  frame_stack: 1
+  n_envs: 2
+
+training:
+  timesteps: 500
+  seed: 42
+  device: cpu
+  allow_cpu: true
+  progress_bar: false
+
+evaluation:
+  episodes: 2
+  frequency: 200
+
+output:
+  directory: outputs/smoke_go2_sac
+  tensorboard_log: runs/smoke_go2_sac
+  run_tag: null
+
+sac:
+  learning_rate: 0.0003
+  learning_rate_schedule: constant
+  policy_net_arch: [32, 32]
+  buffer_size: 5000
+  batch_size: 32
+  ent_coef: auto
+  gamma: 0.99
+  tau: 0.005
+  train_freq: 1
+  gradient_steps: 2
+  learning_starts: 100

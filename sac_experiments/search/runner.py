@@ -28,7 +28,6 @@ from sac_experiments.search.config import (
     SearchConfig,
 )
 from sac_experiments.training import TrainingRunOptions, run_experiment
-from sac_experiments.variants import Variant
 
 
 def require_optuna() -> Any:
@@ -174,7 +173,7 @@ def run_search(search_config: SearchConfig, resume: bool = False) -> Path:
         trial_config = load_config(resolved_path)
         reporter_holder: dict[str, TrialEvaluationReporter] = {}
 
-        def callback_factory(_: ExperimentConfig, __: Variant) -> BaseCallback:
+        def callback_factory(_: ExperimentConfig) -> BaseCallback:
             reporter = TrialEvaluationReporter(
                 trial,
                 search_config.resource_rungs,

@@ -1,169 +1,70 @@
-# LunarLander SAC / PPO Reinforcement Learning Experiments
+# Go2 Locomotion — SAC / PPO Reinforcement Learning
 
-本仓库用于研究连续控制强化学习中的算法基线与结构改进。
+Unitree Go2 四足机器人 MuJoCo 运动控制 RL 训练框架。
 
-当前实验环境：
+## 环境
 
-- `LunarLanderContinuous-v3`
-- Stable-Baselines3 SAC
-- Stable-Baselines3 PPO
+- `Go2Locomotion-v0` — 12-DoF Go2 平面运动控制
+- 物理引擎: MuJoCo 3.x
+- 算法: Stable-Baselines3 SAC / PPO + Optuna 超参搜索
 
-研究重点包括：
-
-- SAC / PPO 可复现实验流程；
-- 并行环境采样；
-- RBF 函数逼近；
-- LTC 时序特征提取。
-
-## 快速入口
-
-训练入口只有一个：
+## 快速开始
 
 ```bash
-python main.py --config <yaml>
+conda activate cybernetic_env
+pip install -r requirements-sac-demo.txt
+PYTHONPATH=. python3 main.py --config configs/go2/sac_baseline.yaml
 ```
 
-`main.py` 根据 YAML 配置创建环境、选择算法、训练 variant 并保存实验摘要。
+## 配置
 
-主要目录：
-
-```text
-configs/
-    sac/        SAC正式实验
-    ppo/        PPO正式实验
-    search/     TPE搜索与复验配置
-    smoke/      快速流程检查
-
-sac_experiments/
-    config.py          分section解析与校验YAML
-    training.py        统一训练生命周期编排
-    model_factory.py   根据配置构造SB3模型
-    reporting.py       参数统计与JSON实验摘要
-    variants.py        variant元数据与策略注册表
-    search/            TPE/ASHA、产物和统计复验
-    ltc_features.py    LTC feature extractor
-    rbf_*.py           RBF策略实现
-
-docs/
-    architecture.md
-    parallel_sac_training.md
-    parallel_ppo_training.md
-    rbf_sac.md
-    rbf_ppo.md
-    ltc.md
-    hyperparameter_search.md
-    research_roadmap.md
-```
-
-完整文档导航见：
-
-[`docs/documentation_map.md`](docs/documentation_map.md)
-
-## 当前实验矩阵
-
-### SAC
-
-基础结构：
-
-| Variant | 说明 |
+| 配置 | 说明 |
 |---|---|
-| `mlp` | 标准 MLP SAC baseline |
-| `ltc` | Circuit LTC temporal feature extractor |
-| `ltc_residual` | 原始 observation + LTC feature fusion |
-| `ltc_residual_action` | LTC 分支额外使用 action history |
+| `configs/go2/sac_baseline.yaml` | SAC 基准参数 |
+| `configs/go2/ppo_baseline.yaml` | PPO 基准参数 |
+| `configs/search/go2_sac_tpe.yaml` | SAC TPE 超参搜索 |
+| `configs/search/go2_ppo_tpe.yaml` | PPO TPE 超参搜索 |
+| `configs/smoke/go2_sac.yaml` | SAC 冒烟测试 (Mac CPU) |
+| `configs/smoke/go2_ppo.yaml` | PPO 冒烟测试 (Mac CPU) |
 
-RBF-SAC：
-
-| Variant | 说明 |
-|---|---|
-| `rbf_64` / `rbf_192` | RBF actor + critic 容量扫描 |
-| `sac_rbf_matched` | 与 SAC optimizer 参数量匹配 |
-| `sac_rbf_actor_mlp_critic_matched` | 仅 actor 参数量匹配 |
-
-### PPO
-
-支持：
-
-- 多环境 rollout；
-- GAE；
-- RBF actor/value 对照。
-
-## 运行示例
-
-SAC baseline：
+## 可视化
 
 ```bash
-python main.py --config configs/sac/baseline.yaml
+# 交互式 viewer (Mac 需 mjpython)
+mjpython visualize_go2.py
+
+# 渲染模型步态视频
+python3 render_go2_video.py
+
+# 可视化训练好的 policy
+mjpython render_trained_policy.py outputs/.../best_model.zip --mode viewer
+python3 render_trained_policy.py outputs/.../best_model.zip --mode video
 ```
 
-SAC + LTC：
+## 项目结构
 
-```bash
-python main.py --config configs/sac/ltc_comparison.yaml
+```
+sac_experiments/          # 核心框架
+  go2_env.py              #   Go2 gymnasium 环境
+  env_utils.py            #   通用环境工具
+  config.py               #   YAML 配置系统
+  training.py             #   训练编排
+  model_factory.py        #   模型构建
+  reporting.py            #   实验报告
+  search/                 #   超参搜索 (Optuna TPE + ASHA)
+configs/go2/              # Go2 实验配置
+configs/search/           # 超参搜索配置
+configs/smoke/            # 冒烟测试配置
+assets/unitree_go2/       # Go2 MuJoCo 模型 (XML + meshes)
+docs/                     # 文档
 ```
 
-并行 SAC：
+## 平台
 
-```bash
-python main.py --config configs/sac/parallel/parallel_8env.yaml
-```
+- **开发**: macOS (ARM64), CPU — smoke test & 可视化
+- **训练**: Ubuntu + NVIDIA GPU — 正式训练 & 超参搜索
 
-并行 PPO：
+## 文档
 
-```bash
-python main.py --config configs/ppo/parallel.yaml
-```
-
-单卡 CUDA 超参数搜索：
-
-```bash
-python main.py --search-config configs/search/sac_mlp_4070_balanced.yaml
-python main.py --search-config configs/search/sac_mlp_4070_balanced.yaml --revalidate
-```
-
-## 超参数搜索工作流索引
-
-超参数系统分为四个职责不同的阶段：
-
-| 阶段 | 负责什么 | 详细说明 |
-|---|---|---|
-| TPE | 根据历史 trial 建议下一组超参数 | [TPE 的功能与采样过程](docs/hyperparameter_search.md#4-tpe-的功能与一次采样过程) |
-| ASHA | 在资源节点停止明显落后的 trial | [ASHA 的功能与剪枝过程](docs/hyperparameter_search.md#5-asha-的功能与剪枝过程) |
-| 自动复验 | 对 top-k 配置执行独立多 seed 完整训练和 95% LCB 比较 | [自动统计复验的完整过程](docs/hyperparameter_search.md#9-自动统计复验的完整过程) |
-| 正式训练 | 使用冠军配置训练并保存最终模型、checkpoint 和 TensorBoard | [复验之后的正式训练](docs/hyperparameter_search.md#10-复验之后正式训练发生什么) |
-
-文字化的端到端使用说明见：
-
-- [完整命令工作流](docs/hyperparameter_search.md#12-完整命令工作流)；
-- [产物目录与推荐阅读顺序](docs/hyperparameter_search.md#13-产物目录与推荐阅读顺序)；
-- [常见误解与判断边界](docs/hyperparameter_search.md#14-常见误解与判断边界)。
-
-## 实验记录原则
-
-训练结果保存：
-
-- `eval_summary.json`
-- `experiment_summary.json`
-- evaluation curve
-- TensorBoard logs
-- GIF visualization
-
-模型权重和 checkpoint 不作为仓库主要同步内容。
-
-评价不只看最高 reward，同时记录：
-
-- best evaluation reward；
-- final evaluation reward；
-- 多 seed 稳定性；
-- 参数量；
-- wall-clock time；
-- sample throughput。
-
-## 说明
-
-LTC、RBF 等结构均作为 feature / policy approximation 改进进行研究，不改变 SAC/PPO 的核心优化过程。
-
-它们的有效性需要通过统一预算、多 seed 实验验证。
-
-超参数搜索和自动统计复验的完整动机、配置与结果解释见
-[`docs/hyperparameter_search.md`](docs/hyperparameter_search.md)。
+- `docs/isaac_lab_go2_roadmap.md` — Isaac Lab 迁移路线图
+- `docs/report_go2_sac_ppo_baseline.md` — SAC vs PPO 学术报告

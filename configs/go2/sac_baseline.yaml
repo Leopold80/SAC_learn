@@ -1,0 +1,40 @@
+# SAC single-environment baseline for Unitree Go2 locomotion (MuJoCo)
+# Classic SAC: 1 env, gradient_steps=1, UTD = 1:1
+
+experiment:
+  environment: Go2Locomotion-v0
+  algorithm: SAC
+  policy: MlpPolicy
+
+environment:
+  frame_stack: 1
+  n_envs: 1
+
+training:
+  timesteps: 5_000_000
+  seed: 42
+  device: cuda
+  allow_cpu: false
+  progress_bar: true
+
+evaluation:
+  episodes: 10
+  frequency: 50_000
+
+output:
+  directory: outputs/go2_sac_1env
+  tensorboard_log: runs/go2_sac_1env
+  run_tag: null
+
+sac:
+  learning_rate: 0.0003
+  learning_rate_schedule: constant
+  policy_net_arch: [256, 256]
+  buffer_size: 1_000_000
+  batch_size: 256
+  ent_coef: auto
+  gamma: 0.99
+  tau: 0.005
+  train_freq: 1
+  gradient_steps: 1
+  learning_starts: 10_000

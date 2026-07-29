@@ -1,4 +1,4 @@
-"""Readable command-line entrypoint for every LunarLander workflow."""
+"""Command-line entrypoint for Go2 locomotion RL workflows."""
 
 from __future__ import annotations
 
@@ -14,10 +14,8 @@ def parse_args(
     argv: Sequence[str] | None = None,
     default_config_path: Path = DEFAULT_CONFIG_PATH,
 ) -> argparse.Namespace:
-    """Parse the three supported workflows: train, search, or revalidate."""
-
     parser = argparse.ArgumentParser(
-        description="Train or tune SAC/PPO on LunarLanderContinuous-v3."
+        description="Train or tune SAC/PPO on Unitree Go2 locomotion (MuJoCo)."
     )
     source = parser.add_mutually_exclusive_group()
     source.add_argument(
@@ -33,11 +31,7 @@ def parse_args(
         help="YAML hyperparameter-search config.",
     )
     parser.add_argument("--resume", action="store_true", help="Resume a search study.")
-    parser.add_argument(
-        "--revalidate",
-        action="store_true",
-        help="Revalidate completed search trials.",
-    )
+    parser.add_argument("--revalidate", action="store_true", help="Revalidate completed search trials.")
     args = parser.parse_args(argv)
     if (args.resume or args.revalidate) and args.search_config is None:
         parser.error("--resume and --revalidate require --search-config.")
@@ -50,8 +44,6 @@ def main(
     argv: Sequence[str] | None = None,
     default_config_path: Path = DEFAULT_CONFIG_PATH,
 ) -> None:
-    """Load configuration, then explicitly dispatch the selected workflow."""
-
     args = parse_args(argv, default_config_path)
     if args.search_config is None:
         run_experiment(load_config(args.config or default_config_path))

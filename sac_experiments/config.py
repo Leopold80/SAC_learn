@@ -1,4 +1,4 @@
-"""YAML configuration contract for LunarLander SAC and PPO experiments."""
+"""YAML configuration for Go2 locomotion SAC and PPO experiments."""
 
 from __future__ import annotations
 
@@ -11,119 +11,84 @@ import re
 from types import MappingProxyType
 from typing import Any
 
-from sac_experiments.lunarlander_common import (
-    DEFAULT_DEVICE,
-    DEFAULT_EVAL_EPISODES,
-    DEFAULT_EVAL_FREQ,
-    DEFAULT_FRAME_STACK,
-    DEFAULT_LEARNING_RATE,
-    DEFAULT_OUTPUT_DIR,
-    DEFAULT_POLICY_NET_ARCH,
-    DEFAULT_SEED,
-    DEFAULT_TENSORBOARD_LOG,
-    DEFAULT_TIMESTEPS,
-    ENV_ID,
-    SAC_CONFIG,
-)
-from sac_experiments.variants import (
-    DEFAULT_VARIANTS,
-    Variant,
-    canonical_variant,
-    is_ltc_variant,
-    is_rbf_variant,
-    is_sac_only_rbf_variant,
-)
+from sac_experiments.go2_env import ACT_DIM, OBS_DIM
 
+# ── Defaults ──────────────────────────────────────────────────────────────────
 
-# The default remains the full SAC + LTC comparison; the directory now makes
-# its algorithm and experiment purpose explicit.
-DEFAULT_CONFIG_PATH = Path("configs/sac/ltc_comparison.yaml")
+DEFAULT_CONFIG_PATH = Path("configs/go2/sac_baseline.yaml")
 SUPPORTED_ALGORITHMS = ("SAC", "PPO")
 SUPPORTED_POLICY = "MlpPolicy"
+ENV_ID = "Go2Locomotion-v0"
 
 DEFAULT_CONFIG: dict[str, Any] = {
     "experiment": {
         "environment": ENV_ID,
         "algorithm": "SAC",
         "policy": SUPPORTED_POLICY,
-        "variants": list(DEFAULT_VARIANTS),
     },
     "environment": {
-        "frame_stack": DEFAULT_FRAME_STACK,
-        "n_envs": 1,
+        "frame_stack": 1,
+        "n_envs": 8,
     },
     "training": {
-        "timesteps": DEFAULT_TIMESTEPS,
-        "seed": DEFAULT_SEED,
-        "device": DEFAULT_DEVICE,
+        "timesteps": 5_000_000,
+        "seed": 42,
+        "device": "cuda",
         "allow_cpu": False,
         "progress_bar": True,
     },
     "evaluation": {
-        "episodes": DEFAULT_EVAL_EPISODES,
-        "frequency": DEFAULT_EVAL_FREQ,
+        "episodes": 10,
+        "frequency": 50_000,
     },
     "output": {
-        "directory": str(DEFAULT_OUTPUT_DIR),
-        "tensorboard_log": str(DEFAULT_TENSORBOARD_LOG),
+        "directory": "outputs/go2_baseline",
+        "tensorboard_log": "runs/go2_baseline",
         "run_tag": None,
     },
     "sac": {
-        "learning_rate": DEFAULT_LEARNING_RATE,
-        "learning_rate_schedule": "linear",
-        "policy_net_arch": list(DEFAULT_POLICY_NET_ARCH),
-        **SAC_CONFIG,
+        "learning_rate": 0.0003,
+        "learning_rate_schedule": "constant",
+        "policy_net_arch": [256, 256],
+        "buffer_size": 1_000_000,
+        "batch_size": 256,
+        "ent_coef": "auto",
+        "gamma": 0.99,
+        "tau": 0.005,
+        "train_freq": 1,
+        "gradient_steps": 8,
+        "learning_starts": 10_000,
     },
     "ppo": {
-        "learning_rate": 3.0e-4,
+        "learning_rate": 0.0003,
         "learning_rate_schedule": "constant",
-        "policy_net_arch": [64, 64],
-        "n_steps": 1024,
+        "policy_net_arch": [256, 256],
+        "n_steps": 2048,
         "batch_size": 64,
-        "n_epochs": 4,
-        "gamma": 0.999,
-        "gae_lambda": 0.98,
+        "n_epochs": 10,
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
         "clip_range": 0.2,
         "clip_range_vf": None,
         "normalize_advantage": True,
-        "ent_coef": 0.01,
+        "ent_coef": 0.001,
         "vf_coef": 0.5,
         "max_grad_norm": 0.5,
         "use_sde": False,
         "sde_sample_freq": -1,
         "target_kl": None,
     },
-    "ltc": {
-        "liquid_hidden_dim": 128,
-        "features_dim": 256,
-        "raw_features_dim": 128,
-        "fusion_hidden_dim": 256,
-        "dt": 1.0,
-        "tau_min": 0.1,
-        "ode_unfolds": 4,
-        "reversal_init_scale": 1.0,
-    },
-    "rbf": {
-        "small_num_centers": 64,
-        "large_num_centers": 192,
-        "sac_strict_matched_num_centers": 6050,
-        "sac_actor_matched_num_centers": 6255,
-        "center_init_range": 1.0,
-        "initial_bandwidth": 1.5,
-        "min_bandwidth": 0.05,
-    },
 }
 
 
+# ── ExperimentConfig ──────────────────────────────────────────────────────────
+
 @dataclass(frozen=True)
 class ExperimentConfig:
-    """Validated, runtime-ready experiment settings loaded from YAML."""
-
     config_path: Path
     env_id: str
     algorithm: str
     policy: str
-    variants: tuple[Variant, ...]
     frame_stack: int
     n_envs: int
     timesteps: int
@@ -141,22 +106,28 @@ class ExperimentConfig:
     policy_net_arch: tuple[int, ...]
     sac: Mapping[str, Any]
     ppo: Mapping[str, Any]
-    ltc: Mapping[str, Any]
-    rbf: Mapping[str, Any]
+    raw_obs_dim: int
+    action_dim: int
 
+    @property
+    def env_kwargs(self) -> dict:
+        """Return the keyword arguments for the Go2 environment."""
+        return {
+            "frame_stack": self.frame_stack,
+        }
+
+
+# ── YAML helpers ──────────────────────────────────────────────────────────────
 
 def load_yaml_file(path: Path) -> dict[str, Any]:
     try:
         import yaml
     except ModuleNotFoundError as exc:
         raise ModuleNotFoundError(
-            "PyYAML is required for YAML configs. Install dependencies from "
-            "requirements-sac-demo.txt."
+            "PyYAML is required for YAML configs."
         ) from exc
-
     if not path.is_file():
         raise FileNotFoundError(f"Config file not found: {path}")
-
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if data is None:
         return {}
@@ -187,6 +158,9 @@ def reject_unknown_keys(
         template_value = template[key]
         if isinstance(value, Mapping) and isinstance(template_value, Mapping):
             reject_unknown_keys(value, template_value, dotted_key)
+
+
+# ── Validators ────────────────────────────────────────────────────────────────
 
 
 def _section(config: Mapping[str, Any], name: str) -> Mapping[str, Any]:
@@ -236,321 +210,158 @@ def _entropy_coefficient(value: Any) -> float | str:
     return _positive_float(value, "sac.ent_coef")
 
 
-def _validate_experiment_section(
-    experiment: Mapping[str, Any],
-) -> tuple[str, str, str, tuple[Variant, ...]]:
-    """Validate the experiment identity and canonicalize its variant names."""
-
-    env_id = str(experiment["environment"])
-    algorithm = str(experiment["algorithm"])
-    policy = str(experiment["policy"])
-    if env_id != ENV_ID:
-        raise ValueError(f"Only {ENV_ID} is supported, got {env_id!r}.")
-    if algorithm not in SUPPORTED_ALGORITHMS:
-        raise ValueError(
-            f"Only {', '.join(SUPPORTED_ALGORITHMS)} are supported, got {algorithm!r}."
-        )
-    if policy != SUPPORTED_POLICY:
-        raise ValueError(f"Only {SUPPORTED_POLICY} is supported, got {policy!r}.")
-
-    variants_value = experiment["variants"]
-    if not isinstance(variants_value, list) or not variants_value:
-        raise ValueError("experiment.variants must be a non-empty list.")
-    variants = tuple(canonical_variant(str(variant)) for variant in variants_value)
-    if len(set(variants)) != len(variants):
-        raise ValueError(f"experiment.variants contains duplicates: {variants}")
-    return env_id, algorithm, policy, variants
-
-
-def _validate_runtime_sections(
-    environment: Mapping[str, Any],
-    training: Mapping[str, Any],
-    variants: tuple[Variant, ...],
-    algorithm: str,
-) -> tuple[int, int, int, int, str, bool, bool]:
-    """Validate environment shape, transition budget, seed, and device settings."""
-
-    frame_stack = _positive_int(environment["frame_stack"], "environment.frame_stack")
-    n_envs = _positive_int(environment["n_envs"], "environment.n_envs")
-    if frame_stack == 1 and any(is_ltc_variant(variant) for variant in variants):
-        raise ValueError("LTC variants require environment.frame_stack to be at least 2.")
-    if frame_stack != 1 and any(is_rbf_variant(variant) for variant in variants):
-        raise ValueError(
-            "RBF variants require environment.frame_stack to be exactly 1 so they "
-            "use the same Markov observation as the MLP baseline."
-        )
-    if algorithm != "SAC" and any(
-        is_sac_only_rbf_variant(variant) for variant in variants
-    ):
-        raise ValueError("The capacity-matched RBF variants are implemented only for SAC.")
-    timesteps = _positive_int(training["timesteps"], "training.timesteps")
-    if n_envs > timesteps:
-        raise ValueError("environment.n_envs must not exceed training.timesteps.")
-    if timesteps % n_envs != 0:
-        raise ValueError(
-            "training.timesteps must be divisible by environment.n_envs so the "
-            "requested total transition count is exact."
-        )
-    seed = training["seed"]
-    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
-        raise ValueError(f"training.seed must be a non-negative integer, got {seed!r}.")
-    device = training["device"]
-    if not isinstance(device, str) or not device.strip():
-        raise ValueError("training.device must be a non-empty string.")
-    allow_cpu = training["allow_cpu"]
-    progress_bar = training["progress_bar"]
-    if not isinstance(allow_cpu, bool) or not isinstance(progress_bar, bool):
-        raise ValueError("training.allow_cpu and training.progress_bar must be booleans.")
-    return (
-        frame_stack,
-        n_envs,
-        timesteps,
-        seed,
-        device,
-        allow_cpu,
-        progress_bar,
-    )
-
-
-def _validate_evaluation_section(
-    evaluation: Mapping[str, Any],
-    timesteps: int,
-    n_envs: int,
-) -> tuple[int, int]:
-    """Validate evaluation cadence in total-transition units."""
-
-    eval_episodes = _positive_int(evaluation["episodes"], "evaluation.episodes")
-    eval_freq = _positive_int(evaluation["frequency"], "evaluation.frequency")
-    if eval_freq > timesteps:
-        raise ValueError(
-            "evaluation.frequency must not exceed training.timesteps; otherwise no "
-            "best-model evaluation would run."
-        )
-    if eval_freq % n_envs != 0:
-        raise ValueError(
-            "evaluation.frequency must be divisible by environment.n_envs because "
-            "vectorized callbacks run once per VecEnv step."
-        )
-    return eval_episodes, eval_freq
-
-
-def _validate_output_section(
-    output: Mapping[str, Any],
-) -> tuple[Path, Path, str | None]:
-    """Resolve safe output paths and an optional single-segment run tag."""
-
-    output_directory_value = output["directory"]
-    tensorboard_log_value = output["tensorboard_log"]
-    if not isinstance(output_directory_value, str) or not output_directory_value.strip():
-        raise ValueError("output.directory must be a non-empty path string.")
-    if not isinstance(tensorboard_log_value, str) or not tensorboard_log_value.strip():
-        raise ValueError("output.tensorboard_log must be a non-empty path string.")
-    output_dir = Path(output_directory_value)
-    tensorboard_log = Path(tensorboard_log_value)
-    run_tag_value = output["run_tag"]
-    if run_tag_value is not None and (
-        not isinstance(run_tag_value, str) or not run_tag_value.strip()
-    ):
-        raise ValueError("output.run_tag must be null or a non-empty string.")
-    run_tag = run_tag_value.strip() if isinstance(run_tag_value, str) else None
-    if run_tag and (
-        run_tag in {".", ".."}
-        or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", run_tag) is None
-    ):
-        raise ValueError(
-            "output.run_tag must be one safe path segment containing only letters, "
-            "numbers, dots, underscores, or hyphens."
-        )
-    if run_tag:
-        output_dir /= run_tag
-        tensorboard_log /= run_tag
-    return output_dir, tensorboard_log, run_tag
-
-
 def _validate_algorithm_sections(
     sac: Mapping[str, Any],
     ppo: Mapping[str, Any],
     algorithm: str,
     n_envs: int,
     timesteps: int,
-) -> tuple[
-    float,
-    str,
-    tuple[int, ...],
-    dict[str, Any],
-    dict[str, Any],
-]:
-    """Validate shared optimizer settings plus SAC- and PPO-specific contracts."""
-
-    algorithm_name = algorithm.lower()
-    algorithm_section = sac if algorithm == "SAC" else ppo
-    learning_rate = _positive_float(
-        algorithm_section["learning_rate"], f"{algorithm_name}.learning_rate"
-    )
-    learning_rate_schedule = str(algorithm_section["learning_rate_schedule"])
-    if learning_rate_schedule not in {"linear", "constant"}:
-        raise ValueError(
-            f"{algorithm_name}.learning_rate_schedule must be 'linear' or 'constant', got "
-            f"{learning_rate_schedule!r}."
-        )
-    policy_net_arch_value = algorithm_section["policy_net_arch"]
-    if not isinstance(policy_net_arch_value, list) or not policy_net_arch_value:
-        raise ValueError(f"{algorithm_name}.policy_net_arch must be a non-empty list.")
-    policy_net_arch = tuple(
-        _positive_int(width, f"{algorithm_name}.policy_net_arch[{index}]")
-        for index, width in enumerate(policy_net_arch_value)
-    )
+) -> tuple[float, str, tuple[int, ...], dict[str, Any], dict[str, Any]]:
+    algo = algorithm.lower()
+    section = sac if algorithm == "SAC" else ppo
+    lr = _positive_float(section["learning_rate"], f"{algo}.learning_rate")
+    lr_schedule = str(section["learning_rate_schedule"])
+    if lr_schedule not in {"linear", "constant"}:
+        raise ValueError(f"{algo}.learning_rate_schedule must be 'linear' or 'constant'.")
+    arch_value = section["policy_net_arch"]
+    if not isinstance(arch_value, list) or not arch_value:
+        raise ValueError(f"{algo}.policy_net_arch must be a non-empty list.")
+    arch = tuple(_positive_int(w, f"{algo}.policy_net_arch[{i}]") for i, w in enumerate(arch_value))
 
     sac_kwargs = {
-        key: value
-        for key, value in sac.items()
-        if key not in {"learning_rate", "learning_rate_schedule", "policy_net_arch"}
+        k: v for k, v in sac.items()
+        if k not in {"learning_rate", "learning_rate_schedule", "policy_net_arch"}
     }
     sac_kwargs["ent_coef"] = _entropy_coefficient(sac_kwargs["ent_coef"])
     for key in ("buffer_size", "batch_size", "train_freq", "gradient_steps"):
         _positive_int(sac_kwargs[key], f"sac.{key}")
-    learning_starts = sac_kwargs["learning_starts"]
-    if isinstance(learning_starts, bool) or not isinstance(learning_starts, int) or learning_starts < 0:
+    ls = sac_kwargs["learning_starts"]
+    if isinstance(ls, bool) or not isinstance(ls, int) or ls < 0:
         raise ValueError("sac.learning_starts must be a non-negative integer.")
     for key in ("gamma", "tau"):
-        value = _positive_float(sac_kwargs[key], f"sac.{key}")
-        if value > 1:
-            raise ValueError(f"sac.{key} must be at most 1, got {value}.")
+        v = _positive_float(sac_kwargs[key], f"sac.{key}")
+        if v > 1:
+            raise ValueError(f"sac.{key} must be at most 1, got {v}.")
 
     ppo_kwargs = {
-        key: value
-        for key, value in ppo.items()
-        if key not in {"learning_rate", "learning_rate_schedule", "policy_net_arch"}
+        k: v for k, v in ppo.items()
+        if k not in {"learning_rate", "learning_rate_schedule", "policy_net_arch"}
     }
     for key in ("n_steps", "batch_size", "n_epochs"):
         ppo_kwargs[key] = _positive_int(ppo_kwargs[key], f"ppo.{key}")
     rollout_size = n_envs * ppo_kwargs["n_steps"]
     if rollout_size <= 1:
-        raise ValueError("PPO requires environment.n_envs * ppo.n_steps to exceed 1.")
+        raise ValueError("PPO requires n_envs * ppo.n_steps > 1.")
     if ppo_kwargs["batch_size"] > rollout_size:
         raise ValueError("ppo.batch_size must not exceed n_envs * ppo.n_steps.")
     if rollout_size % ppo_kwargs["batch_size"] != 0:
-        raise ValueError(
-            "environment.n_envs * ppo.n_steps must be divisible by ppo.batch_size "
-            "so every PPO epoch uses full minibatches."
-        )
+        raise ValueError("n_envs * ppo.n_steps must be divisible by ppo.batch_size.")
     if algorithm == "PPO" and timesteps % rollout_size != 0:
-        raise ValueError(
-            "PPO training.timesteps must be divisible by n_envs * ppo.n_steps so "
-            "SB3 completes an exact number of rollout/update cycles."
-        )
+        raise ValueError("PPO timesteps must be divisible by n_envs * ppo.n_steps.")
     for key in ("gamma", "gae_lambda", "clip_range"):
-        value = _positive_float(ppo_kwargs[key], f"ppo.{key}")
-        if value > 1:
-            raise ValueError(f"ppo.{key} must be at most 1, got {value}.")
-        ppo_kwargs[key] = value
-    clip_range_vf = ppo_kwargs["clip_range_vf"]
-    if clip_range_vf is not None:
-        ppo_kwargs["clip_range_vf"] = _positive_float(
-            clip_range_vf, "ppo.clip_range_vf"
-        )
+        v = _positive_float(ppo_kwargs[key], f"ppo.{key}")
+        if v > 1:
+            raise ValueError(f"ppo.{key} must be at most 1, got {v}.")
+        ppo_kwargs[key] = v
+    cvf = ppo_kwargs["clip_range_vf"]
+    if cvf is not None:
+        ppo_kwargs["clip_range_vf"] = _positive_float(cvf, "ppo.clip_range_vf")
     for key in ("ent_coef", "vf_coef", "max_grad_norm"):
         ppo_kwargs[key] = _non_negative_float(ppo_kwargs[key], f"ppo.{key}")
     for key in ("normalize_advantage", "use_sde"):
         if not isinstance(ppo_kwargs[key], bool):
             raise ValueError(f"ppo.{key} must be a boolean.")
-    sde_sample_freq = ppo_kwargs["sde_sample_freq"]
-    if isinstance(sde_sample_freq, bool) or not isinstance(sde_sample_freq, int):
+    sde = ppo_kwargs["sde_sample_freq"]
+    if isinstance(sde, bool) or not isinstance(sde, int):
         raise ValueError("ppo.sde_sample_freq must be an integer.")
-    if sde_sample_freq < -1:
-        raise ValueError("ppo.sde_sample_freq must be -1 or a non-negative integer.")
+    if sde < -1:
+        raise ValueError("ppo.sde_sample_freq must be -1 or non-negative.")
     target_kl = ppo_kwargs["target_kl"]
     if target_kl is not None:
         ppo_kwargs["target_kl"] = _positive_float(target_kl, "ppo.target_kl")
-    return (
-        learning_rate,
-        learning_rate_schedule,
-        policy_net_arch,
-        sac_kwargs,
-        ppo_kwargs,
-    )
+
+    return lr, lr_schedule, arch, sac_kwargs, ppo_kwargs
 
 
-def _validate_feature_sections(
-    ltc: Mapping[str, Any],
-    rbf: Mapping[str, Any],
-) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Validate the LTC and RBF architecture parameters."""
-
-    for key in ("liquid_hidden_dim", "features_dim", "raw_features_dim", "fusion_hidden_dim", "ode_unfolds"):
-        _positive_int(ltc[key], f"ltc.{key}")
-    for key in ("dt", "tau_min", "reversal_init_scale"):
-        _positive_float(ltc[key], f"ltc.{key}")
-
-    for key in (
-        "small_num_centers",
-        "large_num_centers",
-        "sac_strict_matched_num_centers",
-        "sac_actor_matched_num_centers",
-    ):
-        _positive_int(rbf[key], f"rbf.{key}")
-    if rbf["small_num_centers"] == rbf["large_num_centers"]:
-        raise ValueError(
-            "rbf.small_num_centers and rbf.large_num_centers must be different "
-            "to preserve the two-capacity comparison."
-        )
-    for key in ("center_init_range", "initial_bandwidth", "min_bandwidth"):
-        _positive_float(rbf[key], f"rbf.{key}")
-    if rbf["initial_bandwidth"] <= rbf["min_bandwidth"]:
-        raise ValueError(
-            "rbf.initial_bandwidth must be greater than rbf.min_bandwidth."
-        )
-    return dict(ltc), dict(rbf)
+# ── Main loader ───────────────────────────────────────────────────────────────
 
 
 def load_config(path: Path) -> ExperimentConfig:
-    """Load a YAML file, validate each section, and return runtime-ready settings."""
-
     override = load_yaml_file(path)
     reject_unknown_keys(override, DEFAULT_CONFIG)
-    config = deep_merge(DEFAULT_CONFIG, override)
+    cfg = deep_merge(DEFAULT_CONFIG, override)
 
-    experiment = _section(config, "experiment")
-    environment = _section(config, "environment")
-    training = _section(config, "training")
-    evaluation = _section(config, "evaluation")
-    output = _section(config, "output")
-    sac = _section(config, "sac")
-    ppo = _section(config, "ppo")
-    ltc = _section(config, "ltc")
-    rbf = _section(config, "rbf")
+    exp = _section(cfg, "experiment")
+    env = _section(cfg, "environment")
+    train = _section(cfg, "training")
+    ev = _section(cfg, "evaluation")
+    out = _section(cfg, "output")
+    sac = _section(cfg, "sac")
+    ppo = _section(cfg, "ppo")
 
-    env_id, algorithm, policy, variants = _validate_experiment_section(experiment)
-    (
-        frame_stack,
-        n_envs,
-        timesteps,
-        seed,
-        device,
-        allow_cpu,
-        progress_bar,
-    ) = _validate_runtime_sections(environment, training, variants, algorithm)
-    eval_episodes, eval_freq = _validate_evaluation_section(
-        evaluation,
-        timesteps,
-        n_envs,
+    env_id = str(exp["environment"])
+    algorithm = str(exp["algorithm"])
+    policy = str(exp["policy"])
+    if env_id != ENV_ID:
+        raise ValueError(f"Only {ENV_ID} is supported, got {env_id!r}.")
+    if algorithm not in SUPPORTED_ALGORITHMS:
+        raise ValueError(f"Only {', '.join(SUPPORTED_ALGORITHMS)} are supported.")
+    if policy != SUPPORTED_POLICY:
+        raise ValueError(f"Only {SUPPORTED_POLICY} is supported.")
+
+    frame_stack = _positive_int(env["frame_stack"], "environment.frame_stack")
+    n_envs = _positive_int(env["n_envs"], "environment.n_envs")
+    timesteps = _positive_int(train["timesteps"], "training.timesteps")
+    if n_envs > timesteps:
+        raise ValueError("n_envs must not exceed timesteps.")
+    if timesteps % n_envs != 0:
+        raise ValueError("timesteps must be divisible by n_envs.")
+
+    seed = train["seed"]
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise ValueError(f"seed must be non-negative integer, got {seed!r}.")
+    device = train["device"]
+    if not isinstance(device, str) or not device.strip():
+        raise ValueError("device must be a non-empty string.")
+    allow_cpu = train["allow_cpu"]
+    progress_bar = train["progress_bar"]
+    if not isinstance(allow_cpu, bool) or not isinstance(progress_bar, bool):
+        raise ValueError("allow_cpu and progress_bar must be booleans.")
+
+    eval_episodes = _positive_int(ev["episodes"], "evaluation.episodes")
+    eval_freq = _positive_int(ev["frequency"], "evaluation.frequency")
+    if eval_freq > timesteps:
+        raise ValueError("eval frequency must not exceed timesteps.")
+    if eval_freq % n_envs != 0:
+        raise ValueError("eval frequency must be divisible by n_envs.")
+
+    od = out["directory"]
+    tb = out["tensorboard_log"]
+    if not isinstance(od, str) or not od.strip():
+        raise ValueError("output.directory must be a non-empty path string.")
+    if not isinstance(tb, str) or not tb.strip():
+        raise ValueError("output.tensorboard_log must be a non-empty path string.")
+    output_dir = Path(od)
+    tensorboard_log = Path(tb)
+    run_tag_value = out["run_tag"]
+    if run_tag_value is not None and (not isinstance(run_tag_value, str) or not run_tag_value.strip()):
+        raise ValueError("output.run_tag must be null or a non-empty string.")
+    run_tag = run_tag_value.strip() if isinstance(run_tag_value, str) else None
+    if run_tag and (run_tag in {".", ".."} or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", run_tag) is None):
+        raise ValueError("run_tag must be a safe path segment.")
+    if run_tag:
+        output_dir /= run_tag
+        tensorboard_log /= run_tag
+
+    lr, lr_schedule, arch, sac_kwargs, ppo_kwargs = _validate_algorithm_sections(
+        sac, ppo, algorithm, n_envs, timesteps
     )
-    output_dir, tensorboard_log, run_tag = _validate_output_section(output)
-    (
-        learning_rate,
-        learning_rate_schedule,
-        policy_net_arch,
-        sac_kwargs,
-        ppo_kwargs,
-    ) = _validate_algorithm_sections(sac, ppo, algorithm, n_envs, timesteps)
-    ltc_kwargs, rbf_kwargs = _validate_feature_sections(ltc, rbf)
 
     return ExperimentConfig(
         config_path=path,
         env_id=env_id,
         algorithm=algorithm,
         policy=policy,
-        variants=variants,
         frame_stack=frame_stack,
         n_envs=n_envs,
         timesteps=timesteps,
@@ -563,11 +374,11 @@ def load_config(path: Path) -> ExperimentConfig:
         output_dir=output_dir,
         tensorboard_log=tensorboard_log,
         run_tag=run_tag,
-        learning_rate=learning_rate,
-        learning_rate_schedule=learning_rate_schedule,
-        policy_net_arch=policy_net_arch,
+        learning_rate=lr,
+        learning_rate_schedule=lr_schedule,
+        policy_net_arch=arch,
         sac=MappingProxyType(sac_kwargs),
         ppo=MappingProxyType(ppo_kwargs),
-        ltc=MappingProxyType(ltc_kwargs),
-        rbf=MappingProxyType(rbf_kwargs),
+        raw_obs_dim=OBS_DIM,
+        action_dim=ACT_DIM,
     )

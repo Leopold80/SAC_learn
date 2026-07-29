@@ -27,23 +27,22 @@ class HyperparameterSearchConfigTests(unittest.TestCase):
 
     def test_sac_balanced_config_is_valid_and_aligned(self) -> None:
         config = load_search_config(
-            REPO_ROOT / "configs/search/sac_mlp_4070_balanced.yaml"
+            REPO_ROOT / "configs/search/go2_sac_tpe.yaml"
         )
         self.assertEqual(config.base_experiment.algorithm, "SAC")
-        self.assertEqual(config.base_experiment.n_envs, 8)
-        self.assertEqual(config.resource_rungs, (100_000, 200_000, 400_000))
+        self.assertEqual(config.base_experiment.n_envs, 1)
+        self.assertEqual(config.resource_rungs, (500_000, 1_000_000, 2_000_000, 4_000_000))
 
     def test_ppo_balanced_config_uses_complete_rollouts(self) -> None:
         config = load_search_config(
-            REPO_ROOT / "configs/search/ppo_mlp_4070_balanced.yaml"
+            REPO_ROOT / "configs/search/go2_ppo_tpe.yaml"
         )
         rollout_size = config.base_experiment.n_envs * config.base_experiment.ppo["n_steps"]
-        self.assertEqual(config.resource_rungs, (262_144, 524_288))
         self.assertTrue(all(rung % rollout_size == 0 for rung in config.resource_rungs))
 
     def test_resolved_trial_config_reuses_normal_validation(self) -> None:
         config = load_search_config(
-            REPO_ROOT / "configs/search/sac_mlp_4070_balanced.yaml"
+            REPO_ROOT / "configs/search/go2_sac_tpe.yaml"
         )
         parameters = {
             "sac.learning_rate": 0.0005,
@@ -51,6 +50,7 @@ class HyperparameterSearchConfigTests(unittest.TestCase):
             "sac.gamma": 0.99,
             "sac.batch_size": 256,
             "sac.ent_coef": "auto",
+            "sac.policy_net_arch": [256, 256],
         }
         with tempfile.TemporaryDirectory() as directory:
             temporary_config = replace(config, output_root=Path(directory))

@@ -1,1 +1,1 @@
-"""LunarLander SAC/PPO experiment workflows and shared helpers."""
+"""Go2 locomotion SAC/PPO experiment workflows and shared helpers."""

@@ -176,9 +176,9 @@ def _validate_parameter_path(base_config: dict[str, Any], path: str) -> None:
             f"{path} changes an experiment invariant and is not allowed in a search space."
         )
     parent, key = path_parent_and_key(base_config, path)
-    if isinstance(parent[key], (dict, list)):
+    if isinstance(parent[key], dict):
         raise ValueError(
-            f"{path} is structural. Keep architecture and variants fixed within one study."
+            f"{path} is a dict — structural params cannot be searched."
         )
 
 
@@ -202,10 +202,7 @@ def _parse_parameter(
             raise ValueError(
                 f"parameters.{path}.choices must contain at least two values."
             )
-        if any(
-            isinstance(choice, (dict, list)) or choice is None
-            for choice in choices
-        ):
+        if any(choice is None for choice in choices):
             raise ValueError(
                 f"parameters.{path}.choices must contain scalar non-null values."
             )
@@ -277,8 +274,6 @@ def load_search_config(path: Path) -> SearchConfig:
     config_path = path.resolve()
     base_config_path = _resolve_base_config_path(config_path, raw["base_config"])
     base_experiment = load_config(base_config_path)
-    if len(base_experiment.variants) != 1:
-        raise ValueError("A hyperparameter study must use exactly one experiment variant.")
     base_merged_config = _read_base_merged_config(base_config_path)
 
     study = _mapping(raw["study"], "study")

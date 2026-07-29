@@ -111,7 +111,7 @@ def _run_revalidation_seed(
         ),
     )
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
-    score = float(summary["variants"][0]["after_training"]["mean_reward"])
+    score = float(summary["run"]["after_training"]["mean_reward"])
     if not math.isfinite(score):
         raise FloatingPointError("Held-out revalidation score is not finite.")
     write_json(

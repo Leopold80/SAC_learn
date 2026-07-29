@@ -33,7 +33,7 @@ class EntrypointTests(unittest.TestCase):
 
 class ModelFactoryTests(unittest.TestCase):
     def test_factory_passes_validated_settings_to_sb3(self) -> None:
-        config = load_config(REPO_ROOT / "configs" / "sac" / "baseline.yaml")
+        config = load_config(REPO_ROOT / "configs" / "go2" / "sac_baseline.yaml")
         constructor = Mock(return_value=object())
         train_env = object()
         with (
@@ -42,40 +42,27 @@ class ModelFactoryTests(unittest.TestCase):
                 return_value=constructor,
             ),
             patch(
-                "sac_experiments.model_factory.variant_policy",
-                return_value="Policy",
-            ),
-            patch(
-                "sac_experiments.model_factory.variant_policy_kwargs",
-                return_value={"net_arch": [256, 256]},
-            ),
-            patch(
                 "sac_experiments.model_factory.linear_schedule",
                 return_value="schedule",
             ),
         ):
             model = build_model(
                 config,
-                "mlp",
                 train_env,
-                raw_obs_dim=8,
                 device="cpu",
                 tensorboard_log=Path("runs"),
             )
 
         self.assertIsNotNone(model)
         args, kwargs = constructor.call_args
-        self.assertEqual(args[:2], ("Policy", train_env))
-        self.assertEqual(kwargs["learning_rate"], "schedule")
-        self.assertEqual(kwargs["policy_kwargs"], {"net_arch": [256, 256]})
+        self.assertEqual(kwargs["learning_rate"], 0.0003)
+        self.assertEqual(kwargs["policy_kwargs"]["net_arch"], [256, 256])
         self.assertEqual(kwargs["tensorboard_log"], "runs")
 
 
 class TrainingOrchestrationTests(unittest.TestCase):
-    def test_run_experiment_delegates_each_variant_without_training(self) -> None:
-        base = load_config(
-            REPO_ROOT / "configs" / "smoke" / "sac_ltc.yaml"
-        )
+    def test_run_experiment_single_variant_without_training(self) -> None:
+        base = load_config(REPO_ROOT / "configs" / "smoke" / "go2_sac.yaml")
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             config = replace(
@@ -84,19 +71,15 @@ class TrainingOrchestrationTests(unittest.TestCase):
                 tensorboard_log=root / "runs",
             )
 
-            def fake_train(_config, variant, device, options):
+            def fake_train(_config, device, options):
                 self.assertEqual(device, "cpu")
                 return {
-                    "variant": variant,
                     "after_training": {"mean_reward": 1.0},
                     "best_eval_mean_reward": 1.0,
                 }
 
             with (
-                patch(
-                    "sac_experiments.training.configure_torch",
-                    return_value="cpu",
-                ),
+                patch("sac_experiments.training.configure_torch", return_value="cpu"),
                 patch("sac_experiments.training.set_random_seed"),
                 patch(
                     "sac_experiments.training.train_variant",
@@ -105,19 +88,16 @@ class TrainingOrchestrationTests(unittest.TestCase):
             ):
                 summary_path = run_experiment(config)
 
-            self.assertEqual(train.call_count, len(config.variants))
+            self.assertEqual(train.call_count, 1)
             summary = json.loads(summary_path.read_text(encoding="utf-8"))
-            self.assertEqual(
-                [item["variant"] for item in summary["variants"]],
-                list(config.variants),
-            )
+            self.assertIn("run", summary)
 
-    def test_single_variant_summary_filename_stays_compatible(self) -> None:
-        base = load_config(REPO_ROOT / "configs" / "sac" / "baseline.yaml")
+    def test_single_variant_summary_filename(self) -> None:
+        base = load_config(REPO_ROOT / "configs" / "go2" / "sac_baseline.yaml")
         with tempfile.TemporaryDirectory() as directory:
             config = replace(base, output_dir=Path(directory))
-            path = write_experiment_summary(config, [{"variant": "mlp"}])
-            self.assertEqual(path.name, "experiment_summary_mlp.json")
+            path = write_experiment_summary(config, [{"algorithm": "SAC"}])
+            self.assertEqual(path.name, "experiment_summary.json")
 
 
 if __name__ == "__main__":

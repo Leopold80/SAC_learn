@@ -1,0 +1,45 @@
+# PPO smoke test — minimal budget, Mac CPU, pipeline verification only
+
+experiment:
+  environment: Go2Locomotion-v0
+  algorithm: PPO
+  policy: MlpPolicy
+
+environment:
+  frame_stack: 1
+  n_envs: 2
+
+training:
+  timesteps: 512
+  seed: 42
+  device: cpu
+  allow_cpu: true
+  progress_bar: false
+
+evaluation:
+  episodes: 2
+  frequency: 128
+
+output:
+  directory: outputs/smoke_go2_ppo
+  tensorboard_log: runs/smoke_go2_ppo
+  run_tag: null
+
+ppo:
+  learning_rate: 0.0003
+  learning_rate_schedule: constant
+  policy_net_arch: [32, 32]
+  n_steps: 64
+  batch_size: 32
+  n_epochs: 4
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  clip_range_vf: null
+  normalize_advantage: true
+  ent_coef: 0.001
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  use_sde: false
+  sde_sample_freq: -1
+  target_kl: null

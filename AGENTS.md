@@ -1,76 +1,42 @@
-# Repository Guidelines
+# AGENTS.md — Go2 Locomotion RL
 
-## Project Structure & Module Organization
+面向 AI coding agent 的项目指南。
 
-This repository contains Stable-Baselines3 SAC/PPO + LTC experiments for
-`LunarLanderContinuous-v3` only.
+## 项目概述
 
-- `main.py`: the only training entrypoint; all experiment choices come from YAML.
-- `render_sac_lunarlander_gif.py`: renders a trained LunarLander policy.
-- `configs/`: YAML configs grouped into `sac/`, `ppo/`, and `smoke/`; SAC parallel studies are under `sac/parallel/`.
-- `sac_experiments/`: config validation, unified training, environment helpers, variants, and LTC feature extractors.
-- `requirements-sac-demo.txt`: Python dependencies for the isolated demo environment.
-- `docs/`: architecture, parallel SAC/PPO design, research roadmap, Windows migration guide, and algorithm notes.
-- `outputs/`, `runs/`, and `training_logs/`: generated artifacts, TensorBoard logs, checkpoints, summaries, and process logs.
+Unitree Go2 四足机器人 MuJoCo 运动控制 RL 训练框架。核心代码在 `sac_experiments/` 下。
 
-## Build, Test, and Development Commands
+## 关键文件
 
-Use the isolated conda environment; do not install into `cybernetic_env` directly.
-
-```bash
-conda create -n sac_sb3_demo --clone cybernetic_env
-conda run -n sac_sb3_demo python -m pip install -r requirements-sac-demo.txt
+```
+main.py                           # CLI 入口 (--config / --search-config)
+sac_experiments/config.py         # YAML 配置加载与验证
+sac_experiments/training.py       # 训练编排
+sac_experiments/model_factory.py  # SB3 模型构建
+sac_experiments/go2_env.py        # Go2Locomotion-v0 环境定义
+sac_experiments/env_utils.py      # 通用环境工具 (evaluate, make_vec_env)
+sac_experiments/reporting.py      # JSON 实验报告
+sac_experiments/search/           # 超参搜索子包
 ```
 
-Syntax check scripts:
+## 环境
 
-```bash
-conda run -n sac_sb3_demo python -m py_compile \
-  main.py \
-  render_sac_lunarlander_gif.py \
-  sac_experiments/config.py \
-  sac_experiments/training.py \
-  sac_experiments/lunarlander_common.py \
-  sac_experiments/variants.py \
-  sac_experiments/ltc_features.py
-```
+- **conda env**: `cybernetic_env`
+- **运行需设 PYTHONPATH**: `PYTHONPATH=. python3 main.py ...`
+- **Mac viewer 需 mjpython**: `mjpython visualize_go2.py`
 
-Run examples:
+## 配置约定
 
-```bash
-conda run -n sac_sb3_demo python main.py
-conda run -n sac_sb3_demo python main.py --config configs/sac/baseline.yaml
-conda run -n sac_sb3_demo python main.py --config configs/sac/parallel/parallel_8env.yaml
-conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel.yaml
-conda run -n sac_sb3_demo python main.py --config configs/ppo/parallel_large.yaml
-```
+- YAML 实验配置需包含 `experiment`, `environment`, `training`, `evaluation`, `output`, `sac`/`ppo` 段落
+- SAC: `gradient_steps` 应与 `n_envs` 匹配，保持 UTD ≈ 1:1
+- PPO: `timesteps` 必须能被 `n_envs * n_steps` 整除
+- 只支持 `Go2Locomotion-v0` 环境
 
-For GPU training from this agent environment, use elevated execution because the sandbox may hide CUDA. Also use elevated execution for `SubprocVecEnv` runs when the macOS sandbox blocks multiprocessing with `PermissionError: Operation not permitted`.
+## 提交规范
 
-## Coding Style & Naming Conventions
+使用简洁的命令式 commit message，例如 `Add Go2 SAC baseline config`。PR 应描述实验变更、列出运行命令、提及生成的 artifacts。
 
-Use Python 3.12-compatible code, 4-space indentation, type hints where helpful, and `argparse` only for small script interfaces. Put longer experiment settings in YAML configs. Use descriptive snake_case names for files, functions, variables, output directories, and TensorBoard run names.
+## 平台注意
 
-## Testing Guidelines
-
-There is no formal test suite yet. Validate changes with `py_compile` and the relevant short smoke run before long training:
-
-```bash
-conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_ltc.yaml
-conda run -n sac_sb3_demo python main.py --config configs/smoke/sac_parallel.yaml
-conda run -n sac_sb3_demo python main.py --config configs/smoke/ppo_parallel.yaml
-```
-
-Run `smoke/sac_parallel.yaml` when changing the SAC vector path and `smoke/ppo_parallel.yaml` when changing PPO rollout, minibatch, model dispatch, worker construction, callback frequencies, seeding, or environment cleanup. Do not treat smoke-run rewards as research results.
-
-`evaluation.frequency` is expressed in total transitions. Keep both `training.timesteps` and `evaluation.frequency` divisible by `environment.n_envs`; the training code converts callback and checkpoint frequencies to VecEnv steps. The formal SAC baseline uses eight environments with `train_freq: 1` and `gradient_steps: 8`, preserving an approximately 1:1 gradient-update/transition ratio without copying PPO's more aggressive 16-worker rollout setup.
-
-For PPO, also keep `training.timesteps` divisible by `environment.n_envs * ppo.n_steps`, and keep the rollout size divisible by `ppo.batch_size`. `ppo/parallel.yaml` follows the SB3 2.7 RL-Zoo LunarLanderContinuous recipe with `[64, 64]`, batch size 64, and CPU execution. `ppo/parallel_large.yaml` is the separate CUDA experiment with `[400, 300]` actor/value towers and batch size 256. Treat 16 workers as a strong diversity-oriented baseline, not a guarantee of maximum wall-clock throughput.
-
-## Commit & Pull Request Guidelines
-
-Use concise imperative commit messages, for example `Refactor LunarLander experiment config`. Pull requests should describe the experiment change, list commands run, mention generated artifacts, and include TensorBoard or summary paths when training behavior changes.
-
-## Security & Configuration Tips
-
-Keep `cybernetic_env` clean. Install new dependencies only in `sac_sb3_demo`. Give every concurrent or repeated run a unique `output.run_tag`; the launcher intentionally refuses to reuse non-empty output or TensorBoard directories. Avoid committing large generated files from `outputs/`, `runs/`, or `training_logs/` unless the artifact is explicitly needed for review.
+- Mac (ARM64): 开发 & smoke test，用 `device: cpu`, `allow_cpu: true`
+- Ubuntu + NVIDIA: 正式训练，用 `device: cuda`
