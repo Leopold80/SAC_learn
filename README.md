@@ -13,6 +13,7 @@ Unitree Go2 四足机器人 MuJoCo 运动控制 RL 训练框架。
 ```bash
 conda activate cybernetic_env
 pip install -r requirements-sac-demo.txt
+bash scripts/setup_go2_assets.sh          # 下载 Go2 MuJoCo 模型
 PYTHONPATH=. python3 main.py --config configs/go2/sac_baseline.yaml
 ```
 

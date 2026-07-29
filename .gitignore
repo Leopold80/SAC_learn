@@ -50,3 +50,6 @@ venv/
 .DS_Store
 outputs/
 runs/
+*.mp4
+*.gif
+assets/unitree_go2/assets/
