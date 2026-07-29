@@ -238,7 +238,8 @@ class Go2LocomotionEnv(MujocoEnv):
         quat = self.data.qpos[3:7].copy()  # MuJoCo freejoint: w, x, y, z
         world_to_base = self._quat_conjugate(quat)
         local_lin_vel = self._rotate_by_quat(self.data.qvel[0:3], world_to_base)
-        local_ang_vel = self._rotate_by_quat(self.data.qvel[3:6], world_to_base)
+        # MuJoCo stores free-joint angular velocity in the local body frame.
+        local_ang_vel = self.data.qvel[3:6].copy()
         projected_gravity = self._rotate_by_quat(
             np.array([0.0, 0.0, -1.0], dtype=np.float64),
             world_to_base,
