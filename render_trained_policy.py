@@ -65,7 +65,7 @@ def run_video(model_path: Path, output: Path, episodes: int, fps: int):
 
     mj_model = env.unwrapped.model
     mj_data = env.unwrapped.data
-    renderer = mujoco.Renderer(mj_model, 480, 640)
+    renderer = mujoco.Renderer(mj_model, 360, 480)
 
     frames = []
     obs, _ = env.reset()

@@ -1,13 +1,10 @@
 __pycache__/
 *.py[cod]
 
-# Keep reproducible experiment evidence in Git: JSON summaries, evaluation
-# arrays, monitor CSVs, launcher logs, TensorBoard events and visual reports.
-# Only trained weights/checkpoints and local rendering caches stay untracked.
-outputs/**/best_model/
+# ── Model weights & checkpoints ──
 outputs/**/checkpoints/
-outputs/**/final_model.zip
-outputs/**/*.zip
+outputs/**/final_model*
+outputs/**/checkpoints/**/*.zip
 outputs/**/*.pt
 outputs/**/*.pth
 outputs/**/*.ckpt
@@ -16,9 +13,6 @@ outputs/**/*.safetensors
 outputs/**/*.pkl
 outputs/**/*.pickle
 outputs/**/*.h5
-outputs/**/matplotlib/
-outputs/**/study.sqlite3*
-
 runs/**/*.zip
 runs/**/*.pt
 runs/**/*.pth
@@ -29,27 +23,24 @@ runs/**/*.pkl
 runs/**/*.pickle
 runs/**/*.h5
 
-training_logs/**/*.zip
-training_logs/**/*.pt
-training_logs/**/*.pth
-training_logs/**/*.ckpt
-training_logs/**/*.onnx
-training_logs/**/*.safetensors
-training_logs/**/*.pkl
-training_logs/**/*.pickle
-training_logs/**/*.h5
+# ── Other untracked artifacts ──
+outputs/**/matplotlib/
+outputs/**/study.sqlite3*
+training_logs/
 
+# ── Logs & media ──
+*.log
+*.mp4
+*.gif
+
+# ── Downloaded assets (not source) ──
+assets/unitree_go2/assets/
+
+# ── Python / IDE ──
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
 .venv/
 venv/
 *.egg-info/
-
 .DS_Store
-outputs/
-runs/
-*.mp4
-*.gif
-assets/unitree_go2/assets/

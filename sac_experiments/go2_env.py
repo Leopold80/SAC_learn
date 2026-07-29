@@ -41,8 +41,8 @@ DEFAULT_STAND = np.array([
 ], dtype=np.float64)
 
 # ── PD gains ──────────────────────────────────────────────────────────────────
-DEFAULT_KP = 40.0
-DEFAULT_KD = 0.5
+DEFAULT_KP = 25.0
+DEFAULT_KD = 0.6
 
 # ── Observation dim (proprioception) ──────────────────────────────────────────
 # base lin vel (3) + base ang vel (3) + projected gravity (3) + commands (3)

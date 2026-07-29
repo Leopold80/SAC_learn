@@ -21,15 +21,17 @@ echo "=== Downloading Go2 model assets ==="
 for f in go2.xml scene.xml; do
   if [ ! -f "${ASSET_DIR}/${f}" ]; then
     echo "  -> ${f}"
-    curl -sL "${RAW}/${f}" -o "${ASSET_DIR}/${f}"
+    curl -fL "${RAW}/${f}" -o "${ASSET_DIR}/${f}"
   fi
 done
 
-# Mesh files
+# Mesh files — need meshdir subdirectory
+mkdir -p "${ASSET_DIR}/assets"
 echo "  -> meshes (${#MESHES[@]} files)"
 for mesh in "${MESHES[@]}"; do
   if [ ! -f "${ASSET_DIR}/assets/${mesh}" ]; then
-    curl -sL "${RAW}/assets/${mesh}" -o "${ASSET_DIR}/assets/${mesh}"
+    echo "      ${mesh}"
+    curl -fL "${RAW}/assets/${mesh}" -o "${ASSET_DIR}/assets/${mesh}"
   fi
 done
 
