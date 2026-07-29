@@ -23,6 +23,7 @@ PYTHONPATH=. python3 main.py --config configs/go2/sac_baseline.yaml
 |---|---|
 | `configs/go2/sac_baseline.yaml` | SAC 基准参数 |
 | `configs/go2/ppo_baseline.yaml` | PPO 基准参数 |
+| `configs/go2/ppo_32env.yaml` | 32 环境、完整命令空间与域随机化的 PPO 训练配置 |
 | `configs/search/go2_sac_tpe.yaml` | SAC TPE 超参搜索 |
 | `configs/search/go2_ppo_tpe.yaml` | PPO TPE 超参搜索 |
 | `configs/smoke/go2_sac.yaml` | SAC 冒烟测试 (Mac CPU) |
@@ -67,5 +68,6 @@ docs/                     # 文档
 
 ## 文档
 
-- `docs/isaac_lab_go2_roadmap.md` — Isaac Lab 迁移路线图
-- `docs/report_go2_sac_ppo_baseline.md` — SAC vs PPO 学术报告
+- **[Go2 MuJoCo PPO 环境与训练改进说明](docs/go2_mujoco_ppo_improvements.md)** — 环境正确性修复、奖励与观测设计、PPO rollout/KL 机制、完整域随机化、100M 训练设置，以及 `n_steps=64` 等争议问题的详细解释与验证方法
+- [Isaac Lab 迁移路线图](docs/isaac_lab_go2_roadmap.md)
+- [SAC vs PPO 学术报告](docs/report_go2_sac_ppo_baseline.md)
