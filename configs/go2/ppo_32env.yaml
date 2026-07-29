@@ -1,6 +1,6 @@
-# PPO 32-env stage-1 forward-walking baseline for Unitree Go2 (MuJoCo)
-# Environment defaults use 50 Hz control, forward-only commands and no domain
-# randomization. Re-enable command diversity/randomization only after walking.
+# PPO 32-env full-command Go2 locomotion baseline (MuJoCo)
+# Uses 50 Hz policy control, full planar velocity commands, and reset-time
+# mass/friction/PD-gain domain randomization.
 
 experiment:
   environment: Go2Locomotion-v0
@@ -12,8 +12,10 @@ environment:
   n_envs: 32
 
 training:
-  # 9,765 PPO rollouts: 32 envs * 64 steps = 2,048 transitions/update
-  timesteps: 19_998_720
+  # 48,829 PPO rollouts. The validator requires total timesteps to be exactly
+  # divisible by 32 envs * 64 steps = 2,048 transitions/update, so this is the
+  # smallest valid value at or above 100 million.
+  timesteps: 100_001_792
   seed: 42
   device: cuda
   allow_cpu: false
