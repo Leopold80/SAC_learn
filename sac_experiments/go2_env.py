@@ -45,6 +45,14 @@ DEFAULT_KP = 25.0
 DEFAULT_KD = 0.6
 DEFAULT_ACTION_SCALE = 0.25
 
+# ── Reward shaping ────────────────────────────────────────────────────────────
+# The tracking reward measures the fraction of the standstill tracking error
+# removed by the current velocity.  The epsilon protects near-zero commands,
+# while clipping bounds motions that are much worse than standing still.
+TRACKING_ERROR_EPS = 1.0e-4
+TRACKING_REWARD_MIN = -1.0
+ALIVE_REWARD = 0.1
+
 # ── Observation/action dimensions ─────────────────────────────────────────────
 # local base lin vel (3) + local base ang vel (3) + projected gravity (3)
 # + commands (3) + relative joint pos (12) + scaled joint vel (12)
@@ -266,6 +274,19 @@ class Go2LocomotionEnv(MujocoEnv):
 
     # ── Reward ───────────────────────────────────────────────────────────────
 
+    @staticmethod
+    def _relative_error_improvement(stand_error: float, current_error: float) -> float:
+        """Return the fraction of standstill error removed by the current motion.
+
+        A value of 0 means the motion is no better than standing still, 1 means
+        perfect tracking, and negative values mean the motion is worse than
+        standing.  The lower clip prevents extreme wrong-way velocities from
+        dominating the other reward terms.
+        """
+        denominator = max(float(stand_error), TRACKING_ERROR_EPS)
+        improvement = (float(stand_error) - float(current_error)) / denominator
+        return float(np.clip(improvement, TRACKING_REWARD_MIN, 1.0))
+
     def _compute_reward(
         self,
         *,
@@ -277,8 +298,17 @@ class Go2LocomotionEnv(MujocoEnv):
 
         lin_vel_error = float(np.sum(np.square(self._commands[:2] - local_lin_vel[:2])))
         yaw_vel_error = float(np.square(self._commands[2] - local_ang_vel[2]))
-        tracking_lin_vel = math.exp(-lin_vel_error / 0.25)
-        tracking_ang_vel = math.exp(-yaw_vel_error / 0.25)
+        lin_vel_stand_error = float(np.sum(np.square(self._commands[:2])))
+        yaw_vel_stand_error = float(np.square(self._commands[2]))
+
+        tracking_lin_vel = self._relative_error_improvement(
+            lin_vel_stand_error,
+            lin_vel_error,
+        )
+        tracking_ang_vel = self._relative_error_improvement(
+            yaw_vel_stand_error,
+            yaw_vel_error,
+        )
 
         lin_vel_z = float(np.square(self.data.qvel[2]))
         ang_vel_xy = float(np.sum(np.square(local_ang_vel[:2])))
@@ -290,6 +320,7 @@ class Go2LocomotionEnv(MujocoEnv):
         termination = float(terminated)
 
         components = {
+            "alive": ALIVE_REWARD * (1.0 - termination),
             "tracking_lin_vel": 1.0 * tracking_lin_vel,
             "tracking_ang_vel": 0.5 * tracking_ang_vel,
             "lin_vel_z": -2.0 * lin_vel_z,
@@ -305,6 +336,8 @@ class Go2LocomotionEnv(MujocoEnv):
             **{key: float(value) for key, value in components.items()},
             "lin_vel_error_sq": lin_vel_error,
             "yaw_vel_error_sq": yaw_vel_error,
+            "lin_vel_stand_error_sq": lin_vel_stand_error,
+            "yaw_vel_stand_error_sq": yaw_vel_stand_error,
             "action_rate_cost": action_rate,
             "torque_sq": torque_sq,
             "total": reward,
