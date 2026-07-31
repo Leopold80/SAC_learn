@@ -2,9 +2,25 @@ __pycache__/
 *.py[cod]
 
 # ── Model weights & checkpoints ──
-outputs/**/checkpoints/
+# Go2 的 best/final 权重用于动作分布与固定回放分析；其他实验权重仍
+# 默认忽略，避免旧 LunarLander smoke 权重污染 `git add -A`。
+outputs/**/best_model/
 outputs/**/final_model*
+outputs/**/checkpoints/
 outputs/**/checkpoints/**/*.zip
+outputs/**/replay_buffer*
+!outputs/go2_*/best_model/
+!outputs/go2_*/best_model/*.zip
+!outputs/go2_*/final_model.zip
+!outputs/go2_*/seed_*/best_model/
+!outputs/go2_*/seed_*/best_model/*.zip
+!outputs/go2_*/seed_*/final_model.zip
+!outputs/smoke_go2_ppo/best_model/
+!outputs/smoke_go2_ppo/best_model/*.zip
+!outputs/smoke_go2_ppo/final_model.zip
+!outputs/smoke_go2_sac/best_model/
+!outputs/smoke_go2_sac/best_model/*.zip
+!outputs/smoke_go2_sac/final_model.zip
 outputs/**/*.pt
 outputs/**/*.pth
 outputs/**/*.ckpt
@@ -25,13 +41,23 @@ runs/**/*.h5
 
 # ── Other untracked artifacts ──
 outputs/**/matplotlib/
+outputs/**/cache/
+outputs/**/tmp/
 outputs/**/study.sqlite3*
-training_logs/
+runs/**/cache/
+*.tmp
+*.temp
+*.swp
+MUJOCO_LOG.TXT
 
 # ── Logs & media ──
-*.log
 *.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
 *.gif
+!outputs/**/analysis/*.gif
 
 # ── Downloaded assets (not source) ──
 assets/unitree_go2/assets/

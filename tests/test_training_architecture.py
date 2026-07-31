@@ -22,11 +22,26 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 class EntrypointTests(unittest.TestCase):
     def test_cli_exposes_training_search_and_revalidation(self) -> None:
         training = entrypoint.parse_args(["--config", "train.yaml"])
+        multiseed = entrypoint.parse_args([
+            "--config",
+            "train.yaml",
+            "--seeds",
+            "0",
+            "1",
+            "2",
+        ])
+        benchmark = entrypoint.parse_args([
+            "--config",
+            "train.yaml",
+            "--benchmark-runtime",
+        ])
         search = entrypoint.parse_args(["--search-config", "search.yaml"])
         revalidation = entrypoint.parse_args(
             ["--search-config", "search.yaml", "--revalidate"]
         )
         self.assertEqual(training.config, Path("train.yaml"))
+        self.assertEqual(multiseed.seeds, [0, 1, 2])
+        self.assertTrue(benchmark.benchmark_runtime)
         self.assertEqual(search.search_config, Path("search.yaml"))
         self.assertTrue(revalidation.revalidate)
 

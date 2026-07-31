@@ -8,3 +8,4 @@ tqdm
 rich
 optuna>=4,<5
 scipy
+psutil>=5.9

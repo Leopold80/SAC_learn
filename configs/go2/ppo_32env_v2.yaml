@@ -1,0 +1,70 @@
+# 依据 0e131b9 中 experiment_summary.json 与权重元数据重建的历史 v2 配置。
+# 该文件用于解释已上传日志，不建议继续训练；正式改进请使用
+# ppo_stabilized_forward.yaml。
+
+experiment:
+  environment: Go2Locomotion-v0
+  algorithm: PPO
+  policy: MlpPolicy
+
+environment:
+  frame_stack: 1
+  n_envs: 32
+  action_scale: 0.25
+  command_x_range: [0.0, 1.0]
+  command_y_range: [-0.3, 0.3]
+  command_yaw_range: [-0.5, 0.5]
+  domain_rand_mass: 0.15
+  domain_rand_friction: 0.30
+  domain_rand_kp: 0.15
+
+reward:
+  tracking_mode: relative_error
+  tracking_linear_weight: 1.0
+  tracking_yaw_weight: 0.5
+  tracking_sigma: 0.25
+  alive_weight: 0.1
+
+training:
+  timesteps: 100_001_792
+  seed: 42
+  device: cuda
+  allow_cpu: false
+  progress_bar: true
+
+evaluation:
+  episodes: 20
+  frequency: 65_536
+  seed: 74
+  holdout_seed: 20_000
+  holdout_episodes: 20
+  command: null
+  # 历史 callback 实际仍启用了随机化；此处为日志溯源保留该事实。
+  domain_randomization: true
+
+output:
+  directory: outputs/go2_ppo_32env_v2
+  tensorboard_log: runs/go2_ppo_32env_v2
+  run_tag: null
+
+ppo:
+  learning_rate: 0.0003
+  learning_rate_schedule: constant
+  policy_net_arch: [256, 256]
+  n_steps: 64
+  batch_size: 512
+  n_epochs: 5
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  clip_range_vf: null
+  normalize_advantage: true
+  ent_coef: 0.01
+  vf_coef: 1.0
+  max_grad_norm: 1.0
+  use_sde: false
+  sde_sample_freq: -1
+  target_kl: 0.01
+  log_std_init: 0.0
+  log_std_min: -5.0
+  log_std_max: 1.0

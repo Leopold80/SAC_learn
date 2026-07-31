@@ -9,6 +9,7 @@ from stable_baselines3 import PPO, SAC
 
 from sac_experiments.config import ExperimentConfig
 from sac_experiments.env_utils import linear_schedule
+from sac_experiments.policies import TanhActorCriticPolicy
 
 
 def algorithm_class(algorithm: str) -> type[SAC] | type[PPO]:
@@ -32,10 +33,19 @@ def build_model(
     policy_kwargs = dict(
         net_arch=list(config.policy_net_arch),
     )
+    policy: str | type[TanhActorCriticPolicy] = config.policy
+    if config.algorithm == "PPO":
+        policy_kwargs["log_std_init"] = config.ppo_policy_kwargs["log_std_init"]
+        if config.policy == "TanhMlpPolicy":
+            policy = TanhActorCriticPolicy
+            policy_kwargs.update({
+                "log_std_min": config.ppo_policy_kwargs["log_std_min"],
+                "log_std_max": config.ppo_policy_kwargs["log_std_max"],
+            })
 
     model_class = algorithm_class(config.algorithm)
     return model_class(
-        config.policy,
+        policy,
         train_env,
         learning_rate=learning_rate,
         **algorithm_kwargs,

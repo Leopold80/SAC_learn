@@ -1,4 +1,7 @@
-# PPO smoke test — minimal budget, Mac CPU, pipeline verification only
+# Go2 PPO 稳定化短训练：固定 0.5 m/s 前向指令，无域随机化。
+# Ubuntu 正式运行：
+#   PYTHONPATH=. python3 main.py \
+#     --config configs/go2/ppo_stabilized_forward.yaml --seeds 0 1 2
 
 experiment:
   environment: Go2Locomotion-v0
@@ -7,7 +10,7 @@ experiment:
 
 environment:
   frame_stack: 1
-  n_envs: 2
+  n_envs: 16
   action_scale: 0.25
   command_x_range: [0.5, 0.5]
   command_y_range: [0.0, 0.0]
@@ -24,44 +27,45 @@ reward:
   alive_weight: 0.0
 
 training:
-  timesteps: 512
-  seed: 42
-  device: cpu
-  allow_cpu: true
-  progress_bar: false
+  # 977 PPO rollouts × 2,048 transitions。
+  timesteps: 2_000_896
+  seed: 0
+  device: cuda
+  allow_cpu: false
+  progress_bar: true
 
 evaluation:
-  episodes: 2
-  frequency: 128
+  episodes: 10
+  frequency: 131_072
   seed: 10_000
   holdout_seed: 20_000
-  holdout_episodes: 2
+  holdout_episodes: 20
   command: [0.5, 0.0, 0.0]
   domain_randomization: false
 
 output:
-  directory: outputs/smoke_go2_ppo
-  tensorboard_log: runs/smoke_go2_ppo
+  directory: outputs/go2_ppo_stabilized_forward
+  tensorboard_log: runs/go2_ppo_stabilized_forward
   run_tag: null
 
 ppo:
   learning_rate: 0.0003
   learning_rate_schedule: constant
-  policy_net_arch: [32, 32]
-  n_steps: 64
-  batch_size: 32
-  n_epochs: 4
+  policy_net_arch: [256, 256]
+  n_steps: 128
+  batch_size: 512
+  n_epochs: 5
   gamma: 0.99
   gae_lambda: 0.95
   clip_range: 0.2
   clip_range_vf: null
   normalize_advantage: true
   ent_coef: 0.0
-  vf_coef: 0.5
-  max_grad_norm: 0.5
+  vf_coef: 1.0
+  max_grad_norm: 1.0
   use_sde: false
   sde_sample_freq: -1
-  target_kl: null
+  target_kl: 0.01
   log_std_init: -1.0
   log_std_min: -5.0
   log_std_max: 0.0

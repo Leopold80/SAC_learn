@@ -56,6 +56,10 @@ def build_variant_summary(
     sampled_transitions: int,
     policy_class: str,
     parameter_counts: dict[str, int],
+    holdout_metrics: dict[str, float],
+    zero_action_metrics: dict[str, float],
+    paired_reward_delta: dict[str, float],
+    holdout_log_path: Path,
 ) -> dict[str, Any]:
     learning_rate = {"initial": config.learning_rate, "schedule": config.learning_rate_schedule}
     algorithm_kwargs = dict(config.sac if config.algorithm == "SAC" else config.ppo)
@@ -88,12 +92,29 @@ def build_variant_summary(
         "n_envs": config.n_envs,
         "vec_env": "SubprocVecEnv" if config.n_envs > 1 else "DummyVecEnv",
         "worker_seeds": [config.seed + i for i in range(config.n_envs)],
-        "eval_seed": config.seed + config.n_envs,
+        "eval_seed": config.eval_seed,
+        "holdout_seed": config.holdout_seed,
+        "holdout_episodes": config.holdout_episodes,
+        "eval_command": (
+            list(config.eval_command)
+            if config.eval_command is not None
+            else None
+        ),
+        "eval_domain_randomization": config.eval_domain_randomization,
+        "environment_kwargs": dict(config.environment),
+        "reward_kwargs": dict(config.reward),
         "raw_obs_dim": config.raw_obs_dim,
         "action_dim": config.action_dim,
         "learning_rate": learning_rate,
         **algorithm_kwargs,
-        "policy_kwargs": {"net_arch": list(config.policy_net_arch)},
+        "policy_kwargs": {
+            "net_arch": list(config.policy_net_arch),
+            **(
+                dict(config.ppo_policy_kwargs)
+                if config.algorithm == "PPO"
+                else {}
+            ),
+        },
         "trainable_parameter_count": parameter_counts["policy_total"],
         "parameter_counts": parameter_counts,
         "eval_episodes": config.eval_episodes,
@@ -107,6 +128,10 @@ def build_variant_summary(
         **algo_metrics,
         "before_training": {"mean_reward": before_eval[0], "std_reward": before_eval[1]},
         "after_training": {"mean_reward": after_eval[0], "std_reward": after_eval[1]},
+        "holdout_metrics": holdout_metrics,
+        "zero_action_metrics": zero_action_metrics,
+        "paired_reward_delta": paired_reward_delta,
+        "holdout_log_path": str(holdout_log_path),
         "best_eval_mean_reward": best_eval_reward(eval_log_path),
         "final_model_path": str(final_model_path) if final_model_path else None,
         "best_model_path": str(best_model_path) if best_model_path else None,

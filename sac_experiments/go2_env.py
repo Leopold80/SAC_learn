@@ -46,12 +46,29 @@ DEFAULT_KD = 0.6
 DEFAULT_ACTION_SCALE = 0.25
 
 # ── Reward shaping ────────────────────────────────────────────────────────────
-# The tracking reward measures the fraction of the standstill tracking error
-# removed by the current velocity.  The epsilon protects near-zero commands,
-# while clipping bounds motions that are much worse than standing still.
 TRACKING_ERROR_EPS = 1.0e-4
 TRACKING_REWARD_MIN = -1.0
-ALIVE_REWARD = 0.1
+EPISODE_MAX_STEPS = 1000
+
+TERMINATION_CODES = {
+    "timeout": 0,
+    "height": 1,
+    "orientation": 2,
+    "nonfinite": 3,
+    "base_contact": 4,
+}
+
+EPISODE_INFO_KEYS = (
+    "episode_vx_rmse",
+    "episode_vy_rmse",
+    "episode_yaw_rmse",
+    "episode_mean_vx",
+    "episode_mean_vy",
+    "episode_mean_yaw_rate",
+    "episode_action_saturation",
+    "episode_torque_sq",
+    "termination_code",
+)
 
 # ── Observation/action dimensions ─────────────────────────────────────────────
 # local base lin vel (3) + local base ang vel (3) + projected gravity (3)
@@ -85,8 +102,12 @@ class Go2LocomotionEnv(MujocoEnv):
         domain_rand_mass: float = 0.15,
         domain_rand_friction: float = 0.30,
         domain_rand_kp: float = 0.15,
+        tracking_mode: str = "smooth_baseline",
+        tracking_linear_weight: float = 1.5,
+        tracking_yaw_weight: float = 0.75,
+        tracking_sigma: float = 0.25,
+        alive_weight: float = 0.0,
         render_mode: str | None = None,
-        **_kwargs,
     ):
         self._xml_path = xml_path or str(_GO2_ASSETS / "scene.xml")
         self._kp = float(kp)
@@ -110,6 +131,23 @@ class Go2LocomotionEnv(MujocoEnv):
             domain_rand_friction, "domain_rand_friction"
         )
         self._domain_rand_kp = self._validate_fraction(domain_rand_kp, "domain_rand_kp")
+        if tracking_mode not in {"smooth_baseline", "relative_error"}:
+            raise ValueError(
+                "tracking_mode must be 'smooth_baseline' or 'relative_error'."
+            )
+        self._tracking_mode = tracking_mode
+        self._tracking_linear_weight = self._validate_non_negative(
+            tracking_linear_weight, "tracking_linear_weight"
+        )
+        self._tracking_yaw_weight = self._validate_non_negative(
+            tracking_yaw_weight, "tracking_yaw_weight"
+        )
+        self._tracking_sigma = self._validate_positive(
+            tracking_sigma, "tracking_sigma"
+        )
+        self._alive_weight = self._validate_non_negative(
+            alive_weight, "alive_weight"
+        )
 
         MujocoEnv.__init__(
             self,
@@ -167,6 +205,16 @@ class Go2LocomotionEnv(MujocoEnv):
         self._nominal_body_mass = self.model.body_mass.copy()
         self._nominal_body_inertia = self.model.body_inertia.copy()
         self._nominal_geom_friction = self.model.geom_friction.copy()
+        self._floor_geom_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_GEOM, "floor"
+        )
+        self._base_body_id = mujoco.mj_name2id(
+            self.model, mujoco.mjtObj.mjOBJ_BODY, "base"
+        )
+        if self._floor_geom_id < 0 or self._base_body_id < 0:
+            raise ValueError("Go2 model must contain named floor geom and base body.")
+
+        self._reset_episode_metrics()
 
     # ── Reset ────────────────────────────────────────────────────────────────
 
@@ -186,14 +234,25 @@ class Go2LocomotionEnv(MujocoEnv):
         mujoco.mj_forward(self.model, self.data)
 
         self._prev_action.fill(0.0)
+        self._reset_episode_metrics()
         return self._get_obs()
 
     # ── Step ─────────────────────────────────────────────────────────────────
 
     def step(self, action: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
-        action = np.clip(np.asarray(action, dtype=np.float64), -1.0, 1.0)
+        action = np.asarray(action, dtype=np.float64)
         if action.shape != (ACT_DIM,):
             raise ValueError(f"action must have shape ({ACT_DIM},), got {action.shape}.")
+        if not np.isfinite(action).all():
+            finite_action = np.clip(
+                np.nan_to_num(action, nan=0.0, posinf=1.0, neginf=-1.0),
+                -1.0,
+                1.0,
+            )
+            return self._nonfinite_transition(finite_action)
+        action = np.clip(action, -1.0, 1.0)
+        if self._termination_reason() == "nonfinite":
+            return self._nonfinite_transition(action)
 
         previous_action = self._prev_action.copy()
         target = self._default_pose + action * self._action_scale
@@ -214,7 +273,10 @@ class Go2LocomotionEnv(MujocoEnv):
         # is 10 × 0.002 s = 0.02 s per policy action (50 Hz).
         self.do_simulation(ctrl, self.frame_skip)
 
-        terminated = self._is_terminated()
+        termination_reason = self._termination_reason()
+        if termination_reason == "nonfinite":
+            return self._nonfinite_transition(action)
+        terminated = termination_reason is not None
         reward, reward_info = self._compute_reward(
             action=action,
             previous_action=previous_action,
@@ -224,6 +286,14 @@ class Go2LocomotionEnv(MujocoEnv):
         obs = self._get_obs()
 
         local_lin_vel, local_ang_vel, _ = self._base_kinematics()
+        self._update_episode_metrics(
+            local_lin_vel=local_lin_vel,
+            local_ang_vel=local_ang_vel,
+            action=action,
+            reward_info=reward_info,
+        )
+        episode_finished = terminated or self._episode_steps >= EPISODE_MAX_STEPS
+        final_reason = termination_reason or "timeout"
         info = {
             "reward_info": reward_info,
             "commands": self._commands.astype(np.float32, copy=True),
@@ -231,12 +301,108 @@ class Go2LocomotionEnv(MujocoEnv):
             "local_angular_velocity": local_ang_vel.astype(np.float32, copy=True),
             "base_height": float(self.data.qpos[2]),
             "control_dt": self._control_dt,
+            "command_x": float(self._commands[0]),
+            "command_y": float(self._commands[1]),
+            "command_yaw": float(self._commands[2]),
+            "velocity_x": float(local_lin_vel[0]),
+            "velocity_y": float(local_lin_vel[1]),
+            "yaw_rate": float(local_ang_vel[2]),
+            "action_saturation": float(np.mean(np.abs(action) > 0.95)),
+            "torque_sq": reward_info["torque_sq"],
+            "termination_reason": final_reason if episode_finished else "running",
         }
+        info.update({
+            f"reward_{key}": value
+            for key, value in reward_info.items()
+            if key in {
+                "alive",
+                "tracking_lin_vel",
+                "tracking_ang_vel",
+                "lin_vel_z",
+                "ang_vel_xy",
+                "orientation",
+                "action_rate",
+                "torque",
+                "termination",
+                "total",
+            }
+        })
+        if episode_finished:
+            info.update(self._episode_summary(final_reason))
 
         # Gymnasium's TimeLimit wrapper supplies truncation at 1000 policy
         # steps. Environment termination is reserved for actual falls.
         truncated = False
         return obs, reward, terminated, truncated, info
+
+    def _nonfinite_transition(
+        self,
+        action: np.ndarray,
+    ) -> tuple[np.ndarray, float, bool, bool, dict]:
+        """将数值异常转换为有限的终止样本，避免污染 PPO 更新。"""
+        local_lin_vel = np.zeros(3, dtype=np.float64)
+        local_ang_vel = np.zeros(3, dtype=np.float64)
+        reward_info = {
+            "alive": 0.0,
+            "tracking_lin_vel": 0.0,
+            "tracking_ang_vel": 0.0,
+            "lin_vel_z": 0.0,
+            "ang_vel_xy": 0.0,
+            "orientation": 0.0,
+            "action_rate": 0.0,
+            "torque": 0.0,
+            "termination": -5.0,
+            "lin_vel_error_sq": float(np.sum(np.square(self._commands[:2]))),
+            "yaw_vel_error_sq": float(np.square(self._commands[2])),
+            "lin_vel_stand_error_sq": float(np.sum(np.square(self._commands[:2]))),
+            "yaw_vel_stand_error_sq": float(np.square(self._commands[2])),
+            "action_rate_cost": 0.0,
+            "torque_sq": 0.0,
+            "total": -5.0,
+        }
+        self._prev_action = action.copy()
+        self._update_episode_metrics(
+            local_lin_vel=local_lin_vel,
+            local_ang_vel=local_ang_vel,
+            action=action,
+            reward_info=reward_info,
+        )
+        info = {
+            "reward_info": reward_info,
+            "commands": self._commands.astype(np.float32, copy=True),
+            "local_linear_velocity": local_lin_vel.astype(np.float32),
+            "local_angular_velocity": local_ang_vel.astype(np.float32),
+            "base_height": 0.0,
+            "control_dt": self._control_dt,
+            "command_x": float(self._commands[0]),
+            "command_y": float(self._commands[1]),
+            "command_yaw": float(self._commands[2]),
+            "velocity_x": 0.0,
+            "velocity_y": 0.0,
+            "yaw_rate": 0.0,
+            "action_saturation": float(np.mean(np.abs(action) > 0.95)),
+            "torque_sq": 0.0,
+            "termination_reason": "nonfinite",
+        }
+        info.update({
+            f"reward_{key}": value
+            for key, value in reward_info.items()
+            if key in {
+                "alive",
+                "tracking_lin_vel",
+                "tracking_ang_vel",
+                "lin_vel_z",
+                "ang_vel_xy",
+                "orientation",
+                "action_rate",
+                "torque",
+                "termination",
+                "total",
+            }
+        })
+        info.update(self._episode_summary("nonfinite"))
+        observation = np.zeros(self.observation_space.shape, dtype=np.float32)
+        return observation, -5.0, True, False, info
 
     # ── Observation ──────────────────────────────────────────────────────────
 
@@ -287,6 +453,18 @@ class Go2LocomotionEnv(MujocoEnv):
         improvement = (float(stand_error) - float(current_error)) / denominator
         return float(np.clip(improvement, TRACKING_REWARD_MIN, 1.0))
 
+    @staticmethod
+    def _smooth_baseline_improvement(
+        stand_error: float,
+        current_error: float,
+        sigma: float,
+    ) -> float:
+        """Smooth tracking score relative to the standstill baseline."""
+        return float(
+            math.exp(-float(current_error) / sigma)
+            - math.exp(-float(stand_error) / sigma)
+        )
+
     def _compute_reward(
         self,
         *,
@@ -301,14 +479,26 @@ class Go2LocomotionEnv(MujocoEnv):
         lin_vel_stand_error = float(np.sum(np.square(self._commands[:2])))
         yaw_vel_stand_error = float(np.square(self._commands[2]))
 
-        tracking_lin_vel = self._relative_error_improvement(
-            lin_vel_stand_error,
-            lin_vel_error,
-        )
-        tracking_ang_vel = self._relative_error_improvement(
-            yaw_vel_stand_error,
-            yaw_vel_error,
-        )
+        if self._tracking_mode == "smooth_baseline":
+            tracking_lin_vel = self._smooth_baseline_improvement(
+                lin_vel_stand_error,
+                lin_vel_error,
+                self._tracking_sigma,
+            )
+            tracking_ang_vel = self._smooth_baseline_improvement(
+                yaw_vel_stand_error,
+                yaw_vel_error,
+                self._tracking_sigma,
+            )
+        else:
+            tracking_lin_vel = self._relative_error_improvement(
+                lin_vel_stand_error,
+                lin_vel_error,
+            )
+            tracking_ang_vel = self._relative_error_improvement(
+                yaw_vel_stand_error,
+                yaw_vel_error,
+            )
 
         lin_vel_z = float(np.square(self.data.qvel[2]))
         ang_vel_xy = float(np.sum(np.square(local_ang_vel[:2])))
@@ -320,9 +510,9 @@ class Go2LocomotionEnv(MujocoEnv):
         termination = float(terminated)
 
         components = {
-            "alive": ALIVE_REWARD * (1.0 - termination),
-            "tracking_lin_vel": 1.0 * tracking_lin_vel,
-            "tracking_ang_vel": 0.5 * tracking_ang_vel,
+            "alive": self._alive_weight * (1.0 - termination),
+            "tracking_lin_vel": self._tracking_linear_weight * tracking_lin_vel,
+            "tracking_ang_vel": self._tracking_yaw_weight * tracking_ang_vel,
             "lin_vel_z": -2.0 * lin_vel_z,
             "ang_vel_xy": -0.05 * ang_vel_xy,
             "orientation": -1.0 * orientation,
@@ -346,17 +536,113 @@ class Go2LocomotionEnv(MujocoEnv):
 
     # ── Termination ──────────────────────────────────────────────────────────
 
-    def _is_terminated(self) -> bool:
+    def _termination_reason(self) -> str | None:
+        if not (
+            np.isfinite(self.data.qpos).all()
+            and np.isfinite(self.data.qvel).all()
+        ):
+            return "nonfinite"
         quat = self.data.qpos[3:7]
         _, pitch, roll = self._quat_to_euler(quat)
         if abs(pitch) > math.radians(60) or abs(roll) > math.radians(60):
-            return True
+            return "orientation"
         if self.data.qpos[2] < 0.25:
-            return True
-        return not (
-            np.isfinite(self.data.qpos).all()
-            and np.isfinite(self.data.qvel).all()
+            return "height"
+        if self._has_base_contact():
+            return "base_contact"
+        return None
+
+    def _is_terminated(self) -> bool:
+        """Compatibility helper used by focused environment tests."""
+        return self._termination_reason() is not None
+
+    def _has_base_contact(self) -> bool:
+        for index in range(self.data.ncon):
+            contact = self.data.contact[index]
+            geom_a = int(contact.geom1)
+            geom_b = int(contact.geom2)
+            if geom_a == self._floor_geom_id:
+                other = geom_b
+            elif geom_b == self._floor_geom_id:
+                other = geom_a
+            else:
+                continue
+            if int(self.model.geom_bodyid[other]) == self._base_body_id:
+                return True
+        return False
+
+    # ── Episode diagnostics ──────────────────────────────────────────────────
+
+    def _reset_episode_metrics(self) -> None:
+        self._episode_steps = 0
+        self._episode_vx_error_sq = 0.0
+        self._episode_vy_error_sq = 0.0
+        self._episode_yaw_error_sq = 0.0
+        self._episode_vx = 0.0
+        self._episode_vy = 0.0
+        self._episode_yaw_rate = 0.0
+        self._episode_action_saturation = 0.0
+        self._episode_torque_sq = 0.0
+        self._episode_reward_components: dict[str, float] = {}
+
+    def _update_episode_metrics(
+        self,
+        *,
+        local_lin_vel: np.ndarray,
+        local_ang_vel: np.ndarray,
+        action: np.ndarray,
+        reward_info: dict[str, float],
+    ) -> None:
+        self._episode_steps += 1
+        self._episode_vx_error_sq += float(
+            np.square(self._commands[0] - local_lin_vel[0])
         )
+        self._episode_vy_error_sq += float(
+            np.square(self._commands[1] - local_lin_vel[1])
+        )
+        self._episode_yaw_error_sq += float(
+            np.square(self._commands[2] - local_ang_vel[2])
+        )
+        self._episode_vx += float(local_lin_vel[0])
+        self._episode_vy += float(local_lin_vel[1])
+        self._episode_yaw_rate += float(local_ang_vel[2])
+        self._episode_action_saturation += float(np.mean(np.abs(action) > 0.95))
+        self._episode_torque_sq += reward_info["torque_sq"]
+        for key, value in reward_info.items():
+            if key in {
+                "alive",
+                "tracking_lin_vel",
+                "tracking_ang_vel",
+                "lin_vel_z",
+                "ang_vel_xy",
+                "orientation",
+                "action_rate",
+                "torque",
+                "termination",
+                "total",
+            }:
+                self._episode_reward_components[key] = (
+                    self._episode_reward_components.get(key, 0.0) + float(value)
+                )
+
+    def _episode_summary(self, termination_reason: str) -> dict[str, float]:
+        count = max(self._episode_steps, 1)
+        summary = {
+            "episode_vx_rmse": math.sqrt(self._episode_vx_error_sq / count),
+            "episode_vy_rmse": math.sqrt(self._episode_vy_error_sq / count),
+            "episode_yaw_rmse": math.sqrt(self._episode_yaw_error_sq / count),
+            "episode_mean_vx": self._episode_vx / count,
+            "episode_mean_vy": self._episode_vy / count,
+            "episode_mean_yaw_rate": self._episode_yaw_rate / count,
+            "episode_action_saturation": self._episode_action_saturation / count,
+            "episode_torque_sq": self._episode_torque_sq / count,
+            "termination_code": float(TERMINATION_CODES[termination_reason]),
+        }
+        summary.update({
+            f"episode_reward_{key}": total / count
+            for key, total in self._episode_reward_components.items()
+        })
+        return summary
 
     # ── Commands ─────────────────────────────────────────────────────────────
 
@@ -411,6 +697,20 @@ class Go2LocomotionEnv(MujocoEnv):
         result = float(value)
         if not math.isfinite(result) or not 0.0 <= result < 1.0:
             raise ValueError(f"{name} must satisfy 0 <= value < 1, got {value!r}.")
+        return result
+
+    @staticmethod
+    def _validate_non_negative(value: float, name: str) -> float:
+        result = float(value)
+        if not math.isfinite(result) or result < 0.0:
+            raise ValueError(f"{name} must be finite and non-negative.")
+        return result
+
+    @staticmethod
+    def _validate_positive(value: float, name: str) -> float:
+        result = float(value)
+        if not math.isfinite(result) or result <= 0.0:
+            raise ValueError(f"{name} must be finite and positive.")
         return result
 
     # ── Quaternion helpers ───────────────────────────────────────────────────
