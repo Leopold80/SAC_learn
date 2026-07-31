@@ -1,0 +1,45 @@
+# PPO 32-env × 100M steps for Unitree Go2 locomotion (MuJoCo)
+
+experiment:
+  environment: Go2Locomotion-v0
+  algorithm: PPO
+  policy: MlpPolicy
+
+environment:
+  frame_stack: 1
+  n_envs: 32
+
+training:
+  timesteps: 100_000_000
+  seed: 42
+  device: cuda
+  allow_cpu: false
+  progress_bar: true
+
+evaluation:
+  episodes: 10
+  frequency: 64_000
+
+output:
+  directory: outputs/go2_ppo_32env_100M
+  tensorboard_log: runs/go2_ppo_32env_100M
+  run_tag: null
+
+ppo:
+  learning_rate: 0.0003
+  learning_rate_schedule: constant
+  policy_net_arch: [256, 256]
+  n_steps: 1000
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+  clip_range_vf: null
+  normalize_advantage: true
+  ent_coef: 0.001
+  vf_coef: 0.5
+  max_grad_norm: 0.5
+  use_sde: false
+  sde_sample_freq: -1
+  target_kl: null

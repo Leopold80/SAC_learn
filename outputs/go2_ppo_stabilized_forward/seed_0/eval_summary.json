@@ -1,0 +1,153 @@
+{
+  "config": "configs/go2/ppo_stabilized_forward.yaml",
+  "env_id": "Go2Locomotion-v0",
+  "algorithm": "PPO",
+  "algorithm_source": "stable-baselines3==2.7.0",
+  "policy": "TanhMlpPolicy",
+  "policy_class": "TanhActorCriticPolicy",
+  "seed": 0,
+  "timesteps": 2000896,
+  "frame_stack": 1,
+  "n_envs": 8,
+  "vec_env": "SubprocVecEnv",
+  "worker_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "eval_seed": 10000,
+  "holdout_seed": 20000,
+  "holdout_episodes": 20,
+  "eval_command": [
+    0.5,
+    0.0,
+    0.0
+  ],
+  "eval_domain_randomization": false,
+  "environment_kwargs": {
+    "action_scale": 0.25,
+    "command_x_range": [
+      0.5,
+      0.5
+    ],
+    "command_y_range": [
+      0.0,
+      0.0
+    ],
+    "command_yaw_range": [
+      0.0,
+      0.0
+    ],
+    "domain_rand_mass": 0.0,
+    "domain_rand_friction": 0.0,
+    "domain_rand_kp": 0.0
+  },
+  "reward_kwargs": {
+    "tracking_mode": "smooth_baseline",
+    "tracking_linear_weight": 1.5,
+    "tracking_yaw_weight": 0.75,
+    "tracking_sigma": 0.25,
+    "alive_weight": 0.0
+  },
+  "raw_obs_dim": 48,
+  "action_dim": 12,
+  "learning_rate": {
+    "initial": 0.0003,
+    "schedule": "constant"
+  },
+  "n_steps": 256,
+  "batch_size": 512,
+  "n_epochs": 5,
+  "gamma": 0.99,
+  "gae_lambda": 0.95,
+  "clip_range": 0.2,
+  "clip_range_vf": null,
+  "normalize_advantage": true,
+  "ent_coef": 0.0,
+  "vf_coef": 1.0,
+  "max_grad_norm": 1.0,
+  "use_sde": false,
+  "sde_sample_freq": -1,
+  "target_kl": 0.01,
+  "policy_kwargs": {
+    "net_arch": [
+      256,
+      256
+    ],
+    "log_std_min": -5.0,
+    "log_std_max": 0.0,
+    "log_std_init": -1.0
+  },
+  "trainable_parameter_count": 160025,
+  "parameter_counts": {
+    "policy_total": 160025,
+    "optimized_total": 160025
+  },
+  "eval_episodes": 10,
+  "eval_freq": 131072,
+  "callback_freq_vec_steps": 16384,
+  "training_wall_time_seconds": 643.822171642998,
+  "sampled_transitions": 2000896,
+  "sample_throughput_transitions_per_second": 3107.8395372651207,
+  "rollout_size_transitions": 2048,
+  "minibatches_per_epoch": 4,
+  "optimizer_steps_per_rollout": 20,
+  "sample_reuse_epochs": 5,
+  "before_training": {
+    "mean_reward": -22.078533299999997,
+    "std_reward": 0.2838171426662064
+  },
+  "after_training": {
+    "mean_reward": 14.1115598,
+    "std_reward": 2.083729441014538
+  },
+  "holdout_metrics": {
+    "episode_vx_rmse": 0.2968637046561651,
+    "episode_vy_rmse": 0.06314453905444044,
+    "episode_yaw_rmse": 0.07203333009633207,
+    "episode_mean_vx": 0.23013737603377044,
+    "episode_mean_vy": 0.004883997843992773,
+    "episode_mean_yaw_rate": 0.04481592334640583,
+    "episode_action_saturation": 0.551280497685525,
+    "episode_torque_sq": 215.8924371851862,
+    "termination_code": 1.0,
+    "episode_reward_tracking_lin_vel": 0.5299934159403386,
+    "episode_reward_tracking_ang_vel": -0.016261818337879656,
+    "episode_reward_orientation": -0.008205359543257145,
+    "episode_reward_action_rate": -0.0022586220594952335,
+    "episode_reward_torque": -0.0043178487437037245,
+    "episode_reward_total": 0.21527640364507433
+  },
+  "zero_action_metrics": {
+    "episode_vx_rmse": 0.5018195947121016,
+    "episode_vy_rmse": 0.0009672152290404283,
+    "episode_yaw_rmse": 0.0017790468241770218,
+    "episode_mean_vx": -0.0017452959865985294,
+    "episode_mean_vy": -7.140844346494102e-05,
+    "episode_mean_yaw_rate": -4.067988961791856e-06,
+    "episode_action_saturation": 0.0,
+    "episode_torque_sq": 115.98966296536707,
+    "termination_code": 0.0,
+    "episode_reward_tracking_lin_vel": -0.0036708728834943236,
+    "episode_reward_tracking_ang_vel": -1.2375387568858306e-05,
+    "episode_reward_orientation": -0.00019325021524312552,
+    "episode_reward_action_rate": 0.0,
+    "episode_reward_torque": -0.002319793259307341,
+    "episode_reward_total": -0.022061613352128827
+  },
+  "paired_reward_delta": {
+    "mean": 36.1731731,
+    "ci95_lower": 35.26012366750001,
+    "ci95_upper": 37.061069615
+  },
+  "holdout_log_path": "outputs/go2_ppo_stabilized_forward/seed_0/eval_logs/holdout.npz",
+  "best_eval_mean_reward": 14.2303483,
+  "final_model_path": "outputs/go2_ppo_stabilized_forward/seed_0/final_model.zip",
+  "best_model_path": "outputs/go2_ppo_stabilized_forward/seed_0/best_model/best_model.zip",
+  "tensorboard_log": "runs/go2_ppo_stabilized_forward/seed_0/PPO_1"
+}

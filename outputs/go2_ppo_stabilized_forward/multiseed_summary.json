@@ -1,0 +1,91 @@
+{
+  "experiment_root": "/home/leopold/go2_experiment/outputs/go2_ppo_stabilized_forward",
+  "seeds": [
+    {
+      "seed": 0,
+      "episodes": 20,
+      "falls": 20,
+      "mean_reward": 14.1115598,
+      "vx_rmse": 0.2968637046561651,
+      "mean_vx": 0.23013737603377044,
+      "mean_abs_vy": 0.031481420896710036,
+      "mean_abs_yaw_rate": 0.04521171388196395,
+      "action_saturation": 0.551280497685525,
+      "paired_reward_delta_mean": 36.1731731,
+      "passes_behavior_gate": false,
+      "tail_action_saturation_mean": 0.44062812878535346,
+      "tail_clip_fraction_median": 0.12539061903953552,
+      "tail_approx_kl_p95": 0.018402323126792908,
+      "passes_stability_gate": false,
+      "passes_seed_gate": false
+    },
+    {
+      "seed": 1,
+      "episodes": 20,
+      "falls": 20,
+      "mean_reward": 15.479295199999996,
+      "vx_rmse": 0.26544918831683084,
+      "mean_vx": 0.28881197667906355,
+      "mean_abs_vy": 0.02918350080586406,
+      "mean_abs_yaw_rate": 0.01664164411604462,
+      "action_saturation": 0.4036999556700483,
+      "paired_reward_delta_mean": 37.5409085,
+      "passes_behavior_gate": false,
+      "tail_action_saturation_mean": 0.3973576458600851,
+      "tail_clip_fraction_median": 0.13671875,
+      "tail_approx_kl_p95": 0.016810862347483635,
+      "passes_stability_gate": false,
+      "passes_seed_gate": false
+    },
+    {
+      "seed": 2,
+      "episodes": 20,
+      "falls": 20,
+      "mean_reward": 15.071585099999997,
+      "vx_rmse": 0.2751638161507072,
+      "mean_vx": 0.27990992910179974,
+      "mean_abs_vy": 0.016823377778905226,
+      "mean_abs_yaw_rate": 0.014854666705320277,
+      "action_saturation": 0.3975158107177143,
+      "paired_reward_delta_mean": 37.1331984,
+      "passes_behavior_gate": false,
+      "tail_action_saturation_mean": 0.42280085591169503,
+      "tail_clip_fraction_median": 0.1435546875,
+      "tail_approx_kl_p95": 0.025555869564414024,
+      "passes_stability_gate": false,
+      "passes_seed_gate": false
+    }
+  ],
+  "aggregate": {
+    "mean_reward": {
+      "mean": 14.887480033333333,
+      "std": 0.5733504093091996
+    },
+    "vx_rmse": {
+      "mean": 0.27915890304123436,
+      "std": 0.013132364566361004
+    },
+    "mean_vx": {
+      "mean": 0.26628642727154456,
+      "std": 0.025818301542515434
+    },
+    "mean_abs_vy": {
+      "mean": 0.025829433160493104,
+      "std": 0.00643697052647954
+    },
+    "mean_abs_yaw_rate": {
+      "mean": 0.02556934156777628,
+      "std": 0.013908400690793181
+    },
+    "action_saturation": {
+      "mean": 0.4508320880244292,
+      "std": 0.07107260684108124
+    },
+    "paired_reward_delta_mean": {
+      "mean": 36.94909333333333,
+      "std": 0.5733504093092016
+    }
+  },
+  "passing_seeds": 0,
+  "passes_multiseed_gate": false
+}
